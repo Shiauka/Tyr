@@ -1,0 +1,10 @@
+<xml>
+<Tag1 at1='attr1' at2='attr2'>
+value1
+<Tag3 at3='attr3'>
+value3
+</Tag3>
+</Tag1>
+<Tag2>
+</Tag2>
+</xml>
