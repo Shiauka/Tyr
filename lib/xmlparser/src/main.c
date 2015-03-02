@@ -45,6 +45,9 @@ int main(int argc, char *argv[])
 	
 	switch (_intXMLcommand)
 	{
+		case 4:
+			_bXMLret = SKApi_XML_Parsingspecificcase(_pfXMLinputfile, _pfXMLoutputfile, XSC_YAHOO_COMPANY);
+			break;
         case 3:
             _bXMLret = SKApi_XML_Parsingspecificcase(_pfXMLinputfile, _pfXMLoutputfile, XSC_YAHOO_INCOME);
             break;

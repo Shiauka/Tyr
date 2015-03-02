@@ -6,6 +6,7 @@ typedef enum
 {
     XSC_YAHOO_BONUS,
     XSC_YAHOO_INCOME,
+	XSC_YAHOO_COMPANY,
     XSC_MAX
 }XML_SPECIFIC_CASE;
 

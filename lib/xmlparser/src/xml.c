@@ -115,6 +115,7 @@ bool SKApi_XML_Printinfo(FILE *xmlfile)
     return true;
 }
 
+
 static void _XSC_YB_element_handle_start(void *userData, const char *name, const char **attr)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
@@ -201,7 +202,6 @@ static void _XSC_YB_char_handle(void *userData, const XML_Char *s, int len)
 
     }
 }
-
 static void _XSC_YI_element_handle_start(void *userData, const char *name, const char **attr)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
@@ -277,6 +277,96 @@ static void _XSC_YI_char_handle(void *userData, const XML_Char *s, int len)
     }
 }
 
+static void _XSC_YC_element_handle_start(void *userData, const char *name, const char **attr)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    int i = 0;
+
+    userptr->depth +=1;
+    userptr->find = false;
+
+    if (strcmp("td",name)==0)
+    {
+        for (i = 0; attr[i]; i+=2)
+        {
+            //if (strcmp("class",attr[i])==0 && strcmp("ttt",attr[i+1])==0)
+            {
+                userptr->find = true;
+                userptr->findcount +=1;
+                break;
+            }
+        }
+    }
+}
+
+static void _XSC_YC_element_handle_end(void *userData, const char *name)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+
+    userptr->depth -=1;
+    userptr->find = false;
+}
+
+static void _XSC_YC_char_handle(void *userData, const XML_Char *s, int len)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    char temp[128];
+
+    if ( len <= 1 && (s[0] == 0xA))
+    {
+        /*do nothing with dummy data from xml parsing bug*/
+        return;
+    }
+
+    if (userptr->find)
+    {
+        memset(temp,'\0',128);
+        if(len < 128)
+        {
+            memcpy(temp,s,len);
+        }
+        else
+        {
+            memcpy(temp,s,128);
+        }
+
+        printf("count = %d \n",userptr->findcount);
+		fprintf(userptr->outfile,"%s\n",temp);
+#if 0
+        if (userptr->findcount == 1 || userptr->findcount == 121 || userptr->findcount == 159) //title
+        {
+            fprintf(userptr->outfile,"%s\n",temp);
+        }
+        else if (userptr->findcount > 3 && userptr->findcount <= 120) //13*9+3
+        {
+            fprintf(userptr->outfile,"\"%s\",",temp);
+            if (userptr->findcount % 9 == 3)
+            {
+                fprintf(userptr->outfile,"\n");
+            }            
+        }
+        else if(userptr->findcount > 123 && userptr->findcount <= 158) //5*7+123
+        {
+            fprintf(userptr->outfile,"\"%s\",",temp);
+            if (userptr->findcount % 7 == 4)
+            {
+                fprintf(userptr->outfile,"\n");
+            }
+        }
+        else if(userptr->findcount > 161 && userptr->findcount <= 196) //5*7+161
+        {
+            fprintf(userptr->outfile,"\"%s\",",temp);
+            if (userptr->findcount % 7 == 0)
+            {
+                fprintf(userptr->outfile,"\n");
+            }
+        }
+#endif
+
+    }
+}
+
+
 bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CASE XSC)
 {    
 	int done = 0;
@@ -306,6 +396,10 @@ bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CA
         case XSC_YAHOO_INCOME:
             XML_SetElementHandler(parser, _XSC_YI_element_handle_start, _XSC_YI_element_handle_end);
             XML_SetCharacterDataHandler(parser,_XSC_YI_char_handle);
+            break;
+        case XSC_YAHOO_COMPANY:
+            XML_SetElementHandler(parser, _XSC_YC_element_handle_start, _XSC_YC_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_YC_char_handle);
             break;
         default:
             goto FAILED_CASE;
@@ -347,10 +441,12 @@ bool SKApi_XML_Help(void)
 	printf("[1] print xml information\n");
 	printf("     xmlparser 1 example/example1.xml\n");
     printf("[2] parsing yahoo bonus page and transfer data to out file\n");
-    printf("     xmlparser 2 bonus.xml bonus.cvs\n");
+    printf("     xmlparser 2 bonus.xml bonus.data\n");
     printf("[3] parsing yahoo income page and transfer data to out file\n");
-    printf("     xmlparser 3 income.xml income.cvs\n");
-    printf("[4] continue ...\n");
+    printf("     xmlparser 3 income.xml income.data\n");
+    printf("[4] parsing yahoo company page and transfer data to out file\n");
+    printf("     xmlparser 4 company.xml company.data\n");
+    printf("[5] continue ...\n");
 	printf("==============================================\n");
 
 	return true;
