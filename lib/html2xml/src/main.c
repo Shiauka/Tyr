@@ -4,7 +4,7 @@
 #include <string.h>
 #include "html.h"
 
-#define BUFFSIZE 1024
+#define BUFFSIZE 4096
 
 int main(int argc, char **argv) {
 	//TODO: dynamic buffer handling to never overflow
@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "error: cannot open file %s\n", argv[1]);
 		return 1;
 	}
+
 
     //check file size, avoid space file
     fseek(f,0,SEEK_END);
