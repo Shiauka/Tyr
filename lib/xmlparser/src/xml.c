@@ -5,6 +5,9 @@
 
 #define BUFFSIZE 8192
 static char _XMLBuffer[BUFFSIZE];
+static int firstyear =0;
+static int secondyear = 0;
+
 
 
 static void _Printinfo_element_handle_start(void *userData, const char *name, const char **attr)
@@ -116,13 +119,13 @@ bool SKApi_XML_Printinfo(FILE *xmlfile)
 }
 
 
-static void _XSC_YB_element_handle_start(void *userData, const char *name, const char **attr)
+static void _XSC_Yahoo_Earning_element_handle_start(void *userData, const char *name, const char **attr)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     int i = 0;
 
     userptr->depth +=1;
-    userptr->find = false;
+    
 
     if (strcmp("td",name)==0)
     {
@@ -136,9 +139,18 @@ static void _XSC_YB_element_handle_start(void *userData, const char *name, const
             }
         }
     }
+    else if (strcmp("b",name)==0)
+    {
+        /*not change "userptr->find"  statuswhen specific name b */
+        ;
+    }
+    else
+    {
+        userptr->find = false;
+    }
 }
 
-static void _XSC_YB_element_handle_end(void *userData, const char *name)
+static void _XSC_Yahoo_Earning_element_handle_end(void *userData, const char *name)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
 
@@ -146,7 +158,7 @@ static void _XSC_YB_element_handle_end(void *userData, const char *name)
     userptr->find = false;
 }
 
-static void _XSC_YB_char_handle(void *userData, const XML_Char *s, int len)
+static void _XSC_Yahoo_Earning_char_handle(void *userData, const XML_Char *s, int len)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     char temp[128];
@@ -171,19 +183,57 @@ static void _XSC_YB_char_handle(void *userData, const XML_Char *s, int len)
 
         //printf("count = %d \n",userptr->findcount);
 
-        if (userptr->findcount == 1 || userptr->findcount == 121 || userptr->findcount == 159) //title
+        switch  (userptr->findcount)
         {
-            fprintf(userptr->outfile,"%s\n",temp);
+            case 1:
+            case 121:
+            case 159:   
+                fprintf(userptr->outfile,"%s\n",temp);
+                break;
+                
+            case 2:
+            case 122:
+            case 160:   
+                firstyear = atoi(temp);
+                break;
+                
+            case 3:
+            case 123:
+            case 161:    
+                secondyear = atoi(temp);
+                break;
+            default:
+                break;
         }
-        else if (userptr->findcount > 3 && userptr->findcount <= 120) //13*9+3
+
+        if (userptr->findcount > 3 && userptr->findcount <= 12) //9+3
         {
             fprintf(userptr->outfile,"\"%s\",",temp);
             if (userptr->findcount % 9 == 3)
             {
                 fprintf(userptr->outfile,"\n");
-            }            
+            }
         }
-        else if(userptr->findcount > 123 && userptr->findcount <= 158) //5*7+123
+        else if (userptr->findcount > 12 && userptr->findcount <= 120) //13*9+3
+        {
+            if (userptr->findcount % 9 == 7)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", secondyear, atoi(temp));
+            }
+            else if (userptr->findcount % 9 == 4)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", firstyear, atoi(temp));
+            }
+            else
+            {
+                fprintf(userptr->outfile,"\"%s\",",temp);
+                if (userptr->findcount % 9 == 3)
+                {
+                    fprintf(userptr->outfile,"\n");
+                }
+            }
+        }
+        else if(userptr->findcount > 123 && userptr->findcount <= 130) //7+123
         {
             fprintf(userptr->outfile,"\"%s\",",temp);
             if (userptr->findcount % 7 == 4)
@@ -191,7 +241,26 @@ static void _XSC_YB_char_handle(void *userData, const XML_Char *s, int len)
                 fprintf(userptr->outfile,"\n");
             }
         }
-        else if(userptr->findcount > 161 && userptr->findcount <= 196) //5*7+161
+        else if(userptr->findcount > 130 && userptr->findcount <= 158) //5*7+123
+        {
+            if (userptr->findcount % 7 == 1)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", secondyear, atoi(temp));
+            }
+            else if (userptr->findcount % 7 == 5)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", firstyear, atoi(temp));
+            }
+            else
+            {
+                fprintf(userptr->outfile,"\"%s\",",temp);
+                if (userptr->findcount % 7 == 4)
+                {
+                    fprintf(userptr->outfile,"\n");
+                }
+            }
+        }
+        else if(userptr->findcount > 161 && userptr->findcount <= 168) //7+161
         {
             fprintf(userptr->outfile,"\"%s\",",temp);
             if (userptr->findcount % 7 == 0)
@@ -199,10 +268,29 @@ static void _XSC_YB_char_handle(void *userData, const XML_Char *s, int len)
                 fprintf(userptr->outfile,"\n");
             }
         }
+        else if(userptr->findcount > 168 && userptr->findcount <= 196) //5*7+161
+        {
+            if (userptr->findcount % 7 == 4)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", secondyear, atoi(temp));
+            }
+            else if (userptr->findcount % 7 == 1)
+            {
+                fprintf(userptr->outfile,"\"%03d%02d\",", firstyear, atoi(temp));
+            }
+            else
+            {
+                fprintf(userptr->outfile,"\"%s\",",temp);
+                if (userptr->findcount % 7 == 0)
+                {
+                    fprintf(userptr->outfile,"\n");
+                }
+            }
+        }
 
     }
 }
-static void _XSC_YI_element_handle_start(void *userData, const char *name, const char **attr)
+static void _XSC_Yahoo_Dividend_element_handle_start(void *userData, const char *name, const char **attr)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     int i = 0;
@@ -224,7 +312,7 @@ static void _XSC_YI_element_handle_start(void *userData, const char *name, const
     }
 }
 
-static void _XSC_YI_element_handle_end(void *userData, const char *name)
+static void _XSC_Yahoo_Dividend_element_handle_end(void *userData, const char *name)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
 
@@ -232,7 +320,7 @@ static void _XSC_YI_element_handle_end(void *userData, const char *name)
     userptr->find = false;
 }
 
-static void _XSC_YI_char_handle(void *userData, const XML_Char *s, int len)
+static void _XSC_Yahoo_Dividend_char_handle(void *userData, const XML_Char *s, int len)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     char temp[128];
@@ -277,7 +365,7 @@ static void _XSC_YI_char_handle(void *userData, const XML_Char *s, int len)
     }
 }
 
-static void _XSC_YC_element_handle_start(void *userData, const char *name, const char **attr)
+static void _XSC_Yahoo_Company_element_handle_start(void *userData, const char *name, const char **attr)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     int i = 0;
@@ -299,7 +387,7 @@ static void _XSC_YC_element_handle_start(void *userData, const char *name, const
     }
 }
 
-static void _XSC_YC_element_handle_end(void *userData, const char *name)
+static void _XSC_Yahoo_Company_element_handle_end(void *userData, const char *name)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
 
@@ -307,7 +395,7 @@ static void _XSC_YC_element_handle_end(void *userData, const char *name)
     userptr->find = false;
 }
 
-static void _XSC_YC_char_handle(void *userData, const XML_Char *s, int len)
+static void _XSC_Yahoo_Company_char_handle(void *userData, const XML_Char *s, int len)
 {
     XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
     char temp[128];
@@ -331,7 +419,7 @@ static void _XSC_YC_char_handle(void *userData, const XML_Char *s, int len)
         }
 
         printf("count = %d \n",userptr->findcount);
-		fprintf(userptr->outfile,"%s\n",temp);
+        fprintf(userptr->outfile,"%s\n",temp);
 #if 0
         if (userptr->findcount == 1 || userptr->findcount == 121 || userptr->findcount == 159) //title
         {
@@ -369,63 +457,63 @@ static void _XSC_YC_char_handle(void *userData, const XML_Char *s, int len)
 
 bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CASE XSC)
 {    
-	int done = 0;
-	XML_USER_DATA userdata;
-	int len = 0;
-	XML_Parser parser = XML_ParserCreate(NULL);
+    int done = 0;
+    XML_USER_DATA userdata;
+    int len = 0;
+    XML_Parser parser = XML_ParserCreate(NULL);
 
-	if (!parser)
-	{
-		printf("Couldn't allocate memory for parser \n");
-		return false;
-	}
+    if (!parser)
+    {
+        printf("Couldn't allocate memory for parser \n");
+        return false;
+    }
     
     userdata.depth = 0;
     userdata.outfile = outfile;
     userdata.find = false;
     userdata.findcount = 0;
-	XML_SetUserData(parser, &userdata);
+    XML_SetUserData(parser, &userdata);
 
 
     switch(XSC)
     {
-        case XSC_YAHOO_BONUS:
-            XML_SetElementHandler(parser, _XSC_YB_element_handle_start, _XSC_YB_element_handle_end);
-            XML_SetCharacterDataHandler(parser,_XSC_YB_char_handle);
+        case XSC_YAHOO_EARNING:
+            XML_SetElementHandler(parser, _XSC_Yahoo_Earning_element_handle_start, _XSC_Yahoo_Earning_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_Yahoo_Earning_char_handle);
             break;
-        case XSC_YAHOO_INCOME:
-            XML_SetElementHandler(parser, _XSC_YI_element_handle_start, _XSC_YI_element_handle_end);
-            XML_SetCharacterDataHandler(parser,_XSC_YI_char_handle);
+        case XSC_YAHOO_DIVIDEND:
+            XML_SetElementHandler(parser, _XSC_Yahoo_Dividend_element_handle_start, _XSC_Yahoo_Dividend_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_Yahoo_Dividend_char_handle);
             break;
         case XSC_YAHOO_COMPANY:
-            XML_SetElementHandler(parser, _XSC_YC_element_handle_start, _XSC_YC_element_handle_end);
-            XML_SetCharacterDataHandler(parser,_XSC_YC_char_handle);
+            XML_SetElementHandler(parser, _XSC_Yahoo_Company_element_handle_start, _XSC_Yahoo_Company_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_Yahoo_Company_char_handle);
             break;
         default:
             goto FAILED_CASE;
     }
 
-	do
-	{
-		len = (int)fread(_XMLBuffer, 1, sizeof(_XMLBuffer), xmlfile);
-		if (ferror(xmlfile))
-		{
-			printf("Read xmlfile error\n");
+    do
+    {
+        len = (int)fread(_XMLBuffer, 1, sizeof(_XMLBuffer), xmlfile);
+        if (ferror(xmlfile))
+        {
+            printf("Read xmlfile error\n");
             goto FAILED_CASE;
-		}		
-		
-		done = feof(xmlfile);
-		
-		if(XML_Parse(parser, _XMLBuffer, len, done) == XML_STATUS_ERROR)
-		{
-			printf("Parse error at line %ld:\t%s\n", 
-					XML_GetCurrentLineNumber(parser),
-					XML_ErrorString(XML_GetErrorCode(parser)));
+        }		
+
+        done = feof(xmlfile);
+
+        if(XML_Parse(parser, _XMLBuffer, len, done) == XML_STATUS_ERROR)
+        {
+            printf("Parse error at line %ld:\t%s\n", 
+            XML_GetCurrentLineNumber(parser),
+            XML_ErrorString(XML_GetErrorCode(parser)));
             goto FAILED_CASE;
-		}	
-	}while(!done);
+        }	
+    }while(!done);
 	
-	XML_ParserFree(parser);
+    XML_ParserFree(parser);
 
     return true;
 
@@ -437,17 +525,16 @@ FAILED_CASE:
 
 bool SKApi_XML_Help(void)
 {
-	printf("=============XML Commnd List==================\n");
-	printf("[1] print xml information\n");
-	printf("     xmlparser 1 example/example1.xml\n");
-    printf("[2] parsing yahoo bonus page and transfer data to out file\n");
-    printf("     xmlparser 2 bonus.xml bonus.data\n");
-    printf("[3] parsing yahoo income page and transfer data to out file\n");
-    printf("     xmlparser 3 income.xml income.data\n");
-    printf("[4] parsing yahoo company page and transfer data to out file\n");
-    printf("     xmlparser 4 company.xml company.data\n");
+    printf("=============XML Commnd List==================\n");
+    printf("[1] print xml information\n");
+    printf("     xmlparser 1 example/example1.xml\n");
+    printf("[2] parsing yahoo EARNING page and transfer data to out file\n");
+    printf("     xmlparser 2 EARNING.xml EARNING.data\n");
+    printf("[3] parsing yahoo DIVIDEND page and transfer data to out file\n");
+    printf("     xmlparser 3 DIVIDEND.xml DIVIDEND.data\n");
+    printf("[4] parsing yahoo COMPANY page and transfer data to out file\n");
+    printf("     xmlparser 4 COMPANY.xml COMPANY.data\n");
     printf("[5] continue ...\n");
-	printf("==============================================\n");
-
-	return true;
+    printf("==============================================\n");
+    return true;
 }
