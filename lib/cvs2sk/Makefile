@@ -4,7 +4,7 @@
 ROOT?=../..
 LIB_PATH?=$(ROOT)/lib
 BIN_PATH?=$(ROOT)/bin
-PROJECT=html2xml
+PROJECT=cvs2sk
 PROJECT_PATH=$(LIB_PATH)/$(PROJECT)
 
 
@@ -40,9 +40,9 @@ CC_OPTS=$(INCLUDE) $(CFLAGS)
 #================================
 # RULE
 #================================
-.PHONY: html2xml setup clean
+.PHONY: cvs2sk setup clean
 
-html2xml: setup $(OUT_BIN)
+cvs2sk: setup $(OUT_BIN)
 
 $(OUT_BIN): $(OBJ_C)
 	@$(CC) -o $@ $^
