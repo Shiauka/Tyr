@@ -13,6 +13,13 @@ int main(int argc, char *argv[])
     bool bRet = false;
     int _intcommand = atoi(argv[1]);
 
+    //check input value
+    if (_intcommand == CVS2SK_EARNING && argc < 6)
+    {
+        SKApi_CVS2SK_Help();
+        return 0;
+    }
+
     switch (_intcommand)
     {   
         case CVS2SK_PRICE: 
@@ -23,6 +30,7 @@ int main(int argc, char *argv[])
             break;
             
         case CVS2SK_EARNING:
+            bRet = SKApi_CVS2SK_Earning(atoi(argv[2]), argv[3], argv[4], argv[5]);
             break;
             
         default:
