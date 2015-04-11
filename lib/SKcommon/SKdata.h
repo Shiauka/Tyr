@@ -36,5 +36,21 @@ typedef struct
     unsigned int aftertax_income;
 }SK_EARNING_SEASON;
 
+typedef struct
+{
+    unsigned int year;
+    unsigned int month;
+    unsigned int day;
+    unsigned int strikestock;
+    unsigned long turnover;
+    float price_start;
+    float price_max;
+    float price_min;
+    float price_end;
+    float price_diff;
+    unsigned int strikenum;
+}SK_PRICE;
+
+
 #endif
 

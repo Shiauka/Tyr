@@ -5,10 +5,10 @@
 #include "string.h"
 
 
-#define MAX_STRBUFFER_SIZE 64
+#define MAX_STRBUFFER_SIZE 128
 static char strbuf[MAX_STRBUFFER_SIZE];
 
-char *Skip_specific_character(const char* input, unsigned int len)
+char *Skip_specific_character(const char* input, unsigned int len, char specific)
 {
     unsigned int index = 0;    
     unsigned int count = 0;
@@ -17,7 +17,7 @@ char *Skip_specific_character(const char* input, unsigned int len)
 
     for (index = 0; index < len; index++)
     {
-        if (input[index] == ',')
+        if (input[index] == specific)
         {
             continue;
         }
@@ -49,7 +49,6 @@ void Sort_dividend( SK_DIVIDEND *dividend, int num)
         }
     }
 }
-
 
 bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Outputfile)
 {
@@ -223,7 +222,6 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
         goto FAILED;
     }
 
-
     //load data to structure SK_EARNING_MONTH and SK_EARNING_SEASON
     month = malloc(sizeof(SK_EARNING_MONTH)*36);
     season = malloc(sizeof(SK_EARNING_SEASON)*12);
@@ -267,7 +265,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                         break;
                         
                     case 1:
-                        month[num+12].income =  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        month[num+12].income =  atoi(Skip_specific_character(pstr, strlen(pstr),','));
                         break; 
 
                     case 2:
@@ -282,7 +280,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                         break; 
 
                     case 4:
-                        month[num+24].income =  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        month[num+24].income =  atoi(Skip_specific_character(pstr, strlen(pstr), ','));
                         break;
                         
                     default:
@@ -316,7 +314,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                         break;
                         
                     case 1:
-                        season[num-12+4].aftertax_income=  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        season[num-12+4].aftertax_income=  atoi(Skip_specific_character(pstr, strlen(pstr),','));
                         break; 
 
                     case 2:
@@ -331,7 +329,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                         break; 
 
                     case 4:
-                        season[num-12+8].aftertax_income =  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        season[num-12+8].aftertax_income =  atoi(Skip_specific_character(pstr, strlen(pstr),','));
                         break;
                         
                     default:
@@ -355,7 +353,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                 {
                         
                     case 1:
-                        season[num-16+4].pretax_income=  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        season[num-16+4].pretax_income=  atoi(Skip_specific_character(pstr, strlen(pstr),','));
                         break; 
 
                     case 2:
@@ -363,7 +361,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
                         break;
 
                     case 4:
-                        season[num-16+8].pretax_income =  atoi(Skip_specific_character(pstr, strlen(pstr)));
+                        season[num-16+8].pretax_income =  atoi(Skip_specific_character(pstr, strlen(pstr),','));
                         break;
                         
                     default:
@@ -442,6 +440,291 @@ FAILED:
     
     return bRet;
     
+}
+
+bool SKApi_CVS2SK_Price(const int Code, const char *Inputfilelist, const char *Outputfile)
+{
+    bool bRet = false;
+    FILE *pfinputfilelist = NULL;
+    FILE *pfinputffile = NULL;
+    FILE *pfoutputfile = NULL;
+    char line[MAX_STRBUFFER_SIZE];
+    int linelen = 0;
+    char dirpath[MAX_STRBUFFER_SIZE];
+    char filepath[MAX_STRBUFFER_SIZE*2];
+    char *pstr = NULL, *pstr2 = NULL;
+    int listcount  = 0;
+    bool bfile = false;
+    char tempstr[32];
+    int pstrlen = 0;
+    bool bcat = false;
+    bool bcatdone = false;
+    int index = 0;
+    SK_PRICE *price = NULL;
+    SK_HEADER *header = NULL;
+    int pricecount = 0;
+    int allocsize = 0;
+    char temp_8[8];
+    short ymd=0;
+    
+    //check input value
+    if (Inputfilelist == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //open input list file /output file
+    pfinputfilelist = fopen(Inputfilelist,"r");
+    if (pfinputfilelist == NULL)
+    {
+        printf("open file error: %s\n",Inputfilelist);
+        goto FAILED;
+    }
+    
+    pfoutputfile = fopen(Outputfile,"w");
+    if (pfoutputfile == NULL)
+    {
+        printf("open file error: %s\n",Outputfile);
+        goto FAILED;
+    }
+    
+    //open each file and load data  to structure SK_PRICE
+    while (fgets (line, MAX_STRBUFFER_SIZE, pfinputfilelist)!=NULL)
+    {
+        listcount++;
+        bfile = false;
+        linelen = strlen(line);
+        
+        if (line[linelen-2] == ':')
+        {
+            //get dirpath from listfile
+            {
+                pstr = strtok(line,":");
+                if (strlen(pstr)> MAX_STRBUFFER_SIZE-1)
+                {
+                    printf("filelist path too long\n");
+                    goto FAILED;
+                }
+                memset(dirpath,'\0',MAX_STRBUFFER_SIZE);
+                strncpy(dirpath,pstr,strlen(pstr));
+                strcat(dirpath,"/");
+            }
+        }
+        else if (line[linelen-2] != ':' && line[linelen-1] == '\n')
+        {
+            //get filepath from listfile
+            pstr = strtok(line,"\n");
+            memset(filepath,'\0',MAX_STRBUFFER_SIZE*2);
+            strncpy(filepath,dirpath,strlen(dirpath));   
+            strcat(filepath,pstr);
+            bfile = true;
+        }
+        else
+        {
+            //invaild format
+            printf("invaild filelist format %s : %d\n", Inputfilelist,listcount);
+            goto FAILED;
+        }
+
+        if (bfile)
+        {
+            //open file
+            pfinputffile = fopen(filepath,"r");
+            if (pfinputffile == NULL)
+            {
+                printf("open file error: %s\n",filepath);
+                goto FAILED;
+            }
+            
+            while (fgets (line, MAX_STRBUFFER_SIZE, pfinputffile)!=NULL)
+            {
+                if (strncmp(line," ",1))
+                {
+                    continue;
+                }
+
+                if (pricecount >= allocsize)
+                {
+                    allocsize = pricecount +100;
+                    price = realloc(price, allocsize*sizeof(SK_PRICE));
+               
+                    if (price == NULL)
+                    {
+                        printf("price realloc fail \n");
+                        goto FAILED;
+                    }
+                    else
+                    {
+                        //printf("realloc PRICE buffer to %d x %ld  \n",allocsize,sizeof(SK_PRICE));
+                    }
+                }
+                
+                // the following are parse price specific format
+                bcat = false;
+                index = 0;
+                pstr = strtok(line,", \n\t");
+                while (pstr !=NULL)
+                {
+                    pstrlen = strlen(pstr);
+
+                    if (bcat)
+                    {
+                        strcat(tempstr,pstr);
+                    }
+                    
+                    if (pstr[0] == '"')
+                    {
+                        bcat = true;
+                        memset(tempstr, '\0', 32);
+                        strncpy(tempstr, pstr, pstrlen);
+                    }
+                    else if (pstr[pstrlen-1] == '"')
+                    {
+                        bcat = false;
+                        bcatdone = true;
+                    }
+
+
+                    if (bcat == false)
+                    {
+                        if (!bcatdone)
+                        {
+                            memset(tempstr, '\0', 32);
+                            strncpy(tempstr, pstr, pstrlen);
+                        }
+                        else
+                        {
+                            bcatdone = false;
+                        }
+
+                        //printf("%s(%d),",Skip_specific_character(tempstr,  strlen(tempstr),'"'),index);
+
+                        switch (index)
+                        {
+                            case 0 :
+                                pstr = tempstr;
+                                ymd = 0;
+                                
+                                for (pstr2 = tempstr ; *pstr2 != '\0'; pstr2++)
+                                {
+                                    if (*pstr2 == '/')
+                                    {
+                                        memset(temp_8,'\0',8);
+                                        strncpy(temp_8,pstr,pstr2-pstr);
+                                        pstr = pstr2+1;
+
+                                        if (ymd == 0)
+                                        {   
+                                            price[pricecount ].year = atoi(temp_8);
+                                            ymd++;
+                                        }
+                                        else
+                                        {
+                                            price[pricecount ].month = atoi(temp_8);
+                                            price[pricecount ].day = atoi(pstr);
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                break;
+
+                            case 1:
+                                price[pricecount ].strikestock = atoi(Skip_specific_character(tempstr,  strlen(tempstr),'"'));
+                                break;
+
+                            case 2:
+                                price[pricecount ].turnover = atol(Skip_specific_character(tempstr,  strlen(tempstr),'\"'));
+                                break;
+
+                            case 3:
+                                price[pricecount ].price_start = atof(pstr);
+                                break;
+
+                            case 4:
+                                price[pricecount ].price_max = atof(tempstr);
+                                break;
+
+                            case 5:
+                                price[pricecount ].price_min = atof(tempstr);
+                                break;
+
+                            case 6:
+                                price[pricecount ].price_end = atof(tempstr);
+                                break;
+                                    
+                            case 7:
+                                price[pricecount ].price_diff = atof(tempstr);
+                                break;
+
+                            case 8:
+                                price[pricecount ].strikenum = atoi(Skip_specific_character(tempstr,  strlen(tempstr),'"'));
+                                break;
+                                
+                            default:
+                                break;
+                        }
+                        index++;
+                    }
+                    
+                    pstr = strtok(NULL,", \n\t");
+                }
+                pricecount++;
+                //printf("\n");
+            }
+            
+            fclose(pfinputffile);
+            pfinputffile = NULL;
+        }
+    }
+
+
+#if 0
+    for (index = 0; index < pricecount; index++)
+    {
+        printf("%d,%d,%d,%d,%ld,%f,%f,%f,%f,%f,%d\n", price[index ].year, 
+            price[index].month, price[index].day, price[index].strikestock, 
+            price[index].turnover, price[index].price_start, 
+            price[index].price_max, price[index].price_min, 
+            price[index].price_end, 
+            price[index].price_diff,price[index].strikenum);
+
+    }
+    printf("count = %d\n",pricecount);
+#endif
+
+    //dump SK_HEADER and SK_PRICE to output file
+    header = malloc(sizeof(SK_HEADER));
+
+    header->code = Code;
+    header->datacount = pricecount;
+    header->unidatasize = sizeof(SK_PRICE);
+    header->datalength = pricecount * sizeof(SK_PRICE);
+
+    pstr = (char *)header;
+    for (index = 0; index < sizeof(SK_HEADER); index++)
+    {
+        fprintf(pfoutputfile,"%c", pstr[index]);
+    }
+
+    pstr = (char *)price;
+    for (index = 0; index < header->datalength; index++)
+    {
+        fprintf(pfoutputfile,"%c", pstr[index]);
+    }
+
+    bRet = true;
+    
+FAILED:
+    if (pfinputfilelist !=NULL) fclose(pfinputfilelist); 
+    if (pfinputffile !=NULL) fclose(pfinputffile);
+    if (pfoutputfile !=NULL) fclose(pfoutputfile);
+    if (price !=NULL) free(price);
+    if (header !=NULL) free(header);
+        
+    return bRet;
+
 }
 
 bool SKApi_CVS2SK_Help(void)

@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
     switch (_intcommand)
     {   
         case CVS2SK_PRICE: 
+            bRet = SKApi_CVS2SK_Price(atoi(argv[2]), argv[3], argv[4]);
             break;
             
         case CVS2SK_DIVIDEND:
