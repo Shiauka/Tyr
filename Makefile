@@ -5,7 +5,7 @@ BIN_PATH=$(ROOT)/bin
 #================================
 # SETTING LIB PATH
 #================================
-LIB_NAME_0=xmlparser html2xml cvs2sk
+LIB_NAME_0=xmlparser html2xml cvs2sk skanalyser
 LIB_NAME_MAKE=$(foreach file, $(LIB_NAME_0), $(file)_MAKE)
 LIB_NAME_CLEAN=$(foreach file, $(LIB_NAME_0), $(file)_CLEAN)
 

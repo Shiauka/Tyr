@@ -2,13 +2,23 @@
 #ifndef SKDATA_H
 #define SKDATA_H
 
+typedef enum
+{
+    SK_DATA_TYPE_DIVIDEND = 0,
+    SK_DATA_TYPE_EARNING_MONTH = 1,
+    SK_DATA_TYPE_EARNING_SEASON = 2,
+    SK_DATA_TYPE_PRICE = 3,
+    SK_DATA_TYPE_MAX,
+}SK_DATA_TYPE;
+
 typedef struct
 {
     unsigned int code;
+    SK_DATA_TYPE type;
     unsigned int datacount;
     unsigned int unidatasize;
     unsigned int datalength;
-    unsigned int reserved[4];
+    unsigned int reserved[7];
 }SK_HEADER;
 
 typedef struct

@@ -144,11 +144,20 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
         
     //dump SK_HEADER and SK_DIVIDEND to output file
     header = malloc(sizeof(SK_HEADER));
+    if (header == NULL)
+    {
+        printf("header malloc error\n");
+        goto FAILED;
+    }
+
+    memset(header,'\0',sizeof(SK_HEADER));
+    
     header->code = Code;
+    header->type = SK_DATA_TYPE_DIVIDEND;
     header->datacount = num;
     header->unidatasize = sizeof(SK_DIVIDEND);
     header->datalength = length;
-    
+
     pstr = (char *)header;
     for (index = 0; index < sizeof(SK_HEADER); index++)
     {
@@ -156,13 +165,13 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
     }
 
     Sort_dividend(dividend,num);
-    
+
     pstr = (char *)dividend;
     for (index = 0; index < length; index++)
     {
         fprintf(pfoutputfile,"%c", pstr[index]);
     }
-
+    
     bRet = true;
 
 FAILED:
@@ -388,15 +397,17 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     }
 
     header->code = Code;
+    header->type = SK_DATA_TYPE_EARNING_MONTH;
     header->datacount = num_month;
     header->unidatasize = sizeof(SK_EARNING_MONTH);
     header->datalength = length_month;
-
     pstr = (char *)header;
     for (index = 0; index < sizeof(SK_HEADER); index++)
     {
         fprintf(pfoutputfile_month,"%c", pstr[index]);
     }
+
+
     
     pstr = (char *)month;
     for (index = 0; index < length_month; index++)
@@ -412,6 +423,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     }
     
     header->code = Code;
+    header->type = SK_DATA_TYPE_EARNING_SEASON;
     header->datacount = num_season;
     header->unidatasize = sizeof(SK_EARNING_SEASON);
     header->datalength = length_season;
@@ -698,6 +710,7 @@ bool SKApi_CVS2SK_Price(const int Code, const char *Inputfilelist, const char *O
     header = malloc(sizeof(SK_HEADER));
 
     header->code = Code;
+    header->type = SK_DATA_TYPE_PRICE;
     header->datacount = pricecount;
     header->unidatasize = sizeof(SK_PRICE);
     header->datalength = pricecount * sizeof(SK_PRICE);
