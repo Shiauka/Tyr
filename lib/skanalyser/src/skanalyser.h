@@ -12,6 +12,7 @@ typedef enum
 
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
+bool SKApi_SKANALYSER_Help(void);
 
 
 #endif

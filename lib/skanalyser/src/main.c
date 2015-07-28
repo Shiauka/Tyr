@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        //SKApi_CVS2SK_Help();
+        SKApi_SKANALYSER_Help();
         return 0;
     }
 

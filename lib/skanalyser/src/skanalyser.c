@@ -184,4 +184,16 @@ FAILED:
     return bRet;
 }
 
+bool SKApi_SKANALYSER_Help(void)
+{
+    printf("=============Skanalyser Commnd List==================\n");
+    printf("[0] dump data\n");
+    printf("     ./skanalyser 0 skfile\n");
+    printf("[1] analyser data\n");
+    printf("     ./skanalyser 1 code.list skfile.path\n");
+    printf("=====================================================\n");
+    return true;
+}
+
+
 
