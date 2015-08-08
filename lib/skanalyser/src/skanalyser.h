@@ -14,7 +14,9 @@ typedef enum
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
 bool SKApi_SKANALYSER_Help(void);
-
+bool SKApi_SKANALYSER_Fileread(const char * path, const unsigned int code);
+bool SKApi_SKANALYSER_Init(void);
+void  SKApi_SKANALYSER_Deinit(void);
 
 #endif
 

@@ -1,128 +1,298 @@
 
 #include "SKcommon.h"
 #include "SKdata.h"
-
-//#define MAX_STRBUFFER_SIZE 128
-//static char strbuf[MAX_STRBUFFER_SIZE]; 
+#include "string.h"
 
 
-static bool _Dump_price(FILE *pfinputfile, unsigned int count)
+
+#define FREE_MEM(x)     do{if (x != NULL) {free(x);}}while(0);       
+#define STOCK_NUM 10
+static SK_STOCK stock[STOCK_NUM];
+
+static int _stock_getindex(unsigned int code)
 {
-    if (pfinputfile == NULL || count == 0)
-        return false;
-
-    SK_PRICE *price = NULL;
-
-    price = malloc(sizeof(SK_PRICE)*count+1);
-    if (price == NULL)
-        return false;
-
-    if (fread((char *)price, sizeof(SK_PRICE), count, pfinputfile) == 0)
+    int i = 0;
+    int intRet = -1;
+    for (i = 0; i < STOCK_NUM; i++)
     {
-        free(price);
+        if (stock[i].code == code)
+        {
+            intRet = i;
+            break;
+        }
+    }
+    
+    return intRet;
+}
+
+static int _stock_getfreeindex(unsigned int code)
+{
+    int i = 0;
+    int intRet = -1;
+    for (i = 0; i < STOCK_NUM; i++)
+    {
+        if (stock[i].code == code)
+        {
+            intRet = i;
+            break;
+        }
+
+        if (stock[i].code == 0 && intRet == -1)
+        {
+            /*NO BREAK, due to check code already exist */
+            intRet = i;
+        } 
+    }
+    
+    return intRet;
+}
+
+static void _stock_freestock_specificindex(unsigned int index)
+{
+    /*check input index*/
+    if (index >= STOCK_NUM)
+        return;
+    
+    /*free memory*/
+    FREE_MEM(stock[index].dividend);
+    FREE_MEM(stock[index].earning_m);
+    FREE_MEM(stock[index].earning_s);
+    FREE_MEM(stock[index].price);
+    stock[index].code = 0;
+}
+
+/*Not use now*/
+#if 0
+static void _stock_freestock_specificcode(unsigned int code)
+{
+    unsigned int index = 0;
+    /*trans code to index*/
+    for (index =0; index <STOCK_NUM; index++)
+    {
+        if (stock[index].code == code)
+            break;
+    }
+
+    if (index >= STOCK_NUM)
+        return;
+
+    /*free specific stock*/
+    _stock_freestock_specificindex(index);
+}
+#endif
+
+static void _stock_freestock_all(void)
+{
+    unsigned int index = 0;
+     /*free specific stock*/
+    for (index =0; index <STOCK_NUM; index++)
+    {
+        _stock_freestock_specificindex(index);
+    }
+}
+
+static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
+{
+    int index = _stock_getfreeindex(header.code);
+    if (index == -1)
+    {
+        printf("can't get free index\n");
         return false;
     }
-        
-    int index = 0;
 
-    for (index = 0; index< count; index++)
+    char *p = NULL;
+    
+     /*malloc and read data to memory*/
+    unsigned int size = header.unidatasize*(header.datacount+1); 
+    p = malloc(size);
+    if (p  == NULL)
+        return false;
+
+    memset(p,'\0',size);
+    if (fread(p, header.unidatasize, header.datacount, pfinputfile) == 0)
+        return false;
+
+    /*assinged data point*/
+    switch (header.type)
+    {
+        case SK_DATA_TYPE_PRICE:            
+            /*TODO:  add parsing origanl data and combine flow*/ 
+            FREE_MEM(stock[index].price);
+            stock[index].price = (SK_PRICE *)p;
+            break;  
+            
+        case SK_DATA_TYPE_DIVIDEND:
+            /*TODO:  add parsing origanl data and combine flow*/ 
+            FREE_MEM(stock[index].dividend);
+            stock[index].dividend = (SK_DIVIDEND *)p;
+            break;      
+            
+        case SK_DATA_TYPE_EARNING_MONTH:
+            /*TODO:  add parsing origanl data and combine flow*/ 
+            FREE_MEM(stock[index].earning_m); 
+            stock[index].earning_m = (SK_EARNING_MONTH *)p;
+            break;
+            
+        case SK_DATA_TYPE_EARNING_SEASON:
+             /*TODO:  add parsing origanl data and combine flow*/ 
+            FREE_MEM(stock[index].earning_s);
+            stock[index].earning_s = (SK_EARNING_SEASON *)p;
+            break;
+            
+        default:
+            printf("Code: %d has incorrect type",header.code);
+            return false;
+    }
+
+    /*update code num*/
+    stock[index].code = header.code;
+
+    return true;
+}
+
+static bool _SK_Datasave(SK_HEADER header, FILE *pfinputfile)
+{
+    bool bRet = false;
+    switch (header.type)
+    {
+        case SK_DATA_TYPE_PRICE:
+            bRet = _stock_savedata(header, pfinputfile);
+            break;  
+            
+        case SK_DATA_TYPE_DIVIDEND:
+            bRet =  _stock_savedata(header, pfinputfile);
+            break;      
+            
+        case SK_DATA_TYPE_EARNING_MONTH:
+            bRet = _stock_savedata(header, pfinputfile);
+            break;
+            
+        case SK_DATA_TYPE_EARNING_SEASON:
+            bRet = _stock_savedata(header, pfinputfile);
+            break;
+            
+        default:
+            printf("Code: %d has incorrect type",header.code);
+            break;
+    }
+
+    return bRet;
+}
+
+static bool _SK_Fileread(const char *filename)
+{
+    /*check input*/
+    if (filename == NULL)
+    {
+        printf("filename is null");
+        return false;
+    }
+
+    bool bRet = false;
+    FILE *pfinput = NULL;
+    SK_HEADER header;
+    
+    /*open file*/
+    pfinput = fopen(filename,"r");
+    if (pfinput == NULL)
+    {
+        printf("open file error: %s\n",filename);
+        goto FAILED;
+    }
+
+    /*read header*/
+    if (fread((char *)&header, sizeof(SK_HEADER), 1, pfinput)!=0)
+    {
+        printf("Read file [code : %d],[type : %d]\n",header.code,header.type);
+    }
+    else
+    {
+        printf("read header failed\n");
+        goto FAILED;
+    }
+
+    /*save data*/
+    if (!_SK_Datasave(header, pfinput))
+    {
+        printf("save data failed\n");
+        goto FAILED;
+    }
+
+    bRet = true;
+FAILED:
+    if (pfinput != NULL) {fclose(pfinput); pfinput = NULL;}
+    return bRet;
+
+}
+
+static bool _Dump_price(unsigned int code)
+{
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
+        return false;
+
+    for (i = 0; stock[index].price[i].year != 0; i++)
     {
         printf("%03d-%02d-%02d %d, %ld %0.02f %0.02f %0.02f %0.02f %0.02f %d\n",
-            price[index].year,price[index].month,price[index].day, 
-            price[index].strikestock, price[index].turnover, 
-            price[index].price_start, price[index].price_max, 
-            price[index].price_min, price[index].price_end, 
-            price[index].price_diff, price[index].strikenum);
+            stock[index].price[i].year,stock[index].price[i].month,stock[index].price[i].day, 
+            stock[index].price[i].strikestock, stock[index].price[i].turnover, 
+            stock[index].price[i].price_start, stock[index].price[i].price_max, 
+            stock[index].price[i].price_min, stock[index].price[i].price_end, 
+            stock[index].price[i].price_diff, stock[index].price[i].strikenum);
     }
-    free(price);
     return true;
 }
 
-static bool _Dump_dividend(FILE *pfinputfile, unsigned int count)
+static bool _Dump_dividend(unsigned int code)
 {
-    if (pfinputfile == NULL || count == 0)
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
         return false;
 
-    SK_DIVIDEND *dividend = NULL;
-
-    dividend = malloc(sizeof(SK_DIVIDEND)*count+1);
-    if (dividend == NULL)
-        return false;
-
-    if (fread((char *)dividend, sizeof(SK_DIVIDEND), count, pfinputfile) == 0)
-    {
-        free(dividend);
-        return false;
-    }
-        
-    int index = 0;
-
-    for (index = 0; index< count; index++)
+    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
     {
         printf("%03d %0.02f %0.02f %0.02f %0.02f %0.02f\n",
-            dividend[index].year, dividend[index].cash, dividend[index].profit, 
-            dividend[index].surplus,dividend[index].stock,dividend[index].total);
+            stock[index].dividend[i ].year, stock[index].dividend[i ].cash, stock[index].dividend[i ].profit, 
+            stock[index].dividend[i ].surplus,stock[index].dividend[i ].stock,stock[index].dividend[i ].total);
     }
-    free(dividend);
+    
     return true;
 }
 
-static bool _Dump_earning_month(FILE *pfinputfile, unsigned int count)
+static bool _Dump_earning_month(unsigned int code)
 {
-    if (pfinputfile == NULL || count == 0)
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
         return false;
 
-    SK_EARNING_MONTH *month = NULL;
-
-    month = malloc(sizeof(SK_EARNING_MONTH)*count+1);
-    if (month == NULL)
-        return false;
-
-    if (fread((char *)month, sizeof(SK_EARNING_MONTH), count, pfinputfile) == 0)
-    {
-        free(month);
-        return false;
-    }
-        
-    int index = 0;
-
-    for (index = 0; index< count; index++)
+    for (i = 0; stock[index].earning_m[i].year != 0; i++)
     {
         printf("%03d-%02d %d\n",
-            month[index].year,month[index].month,month[index].income);
+            stock[index].earning_m[i].year,stock[index].earning_m[i].month,stock[index].earning_m[i].income);
     }
-    free(month);
+    
     return true;
 }
 
-static bool _Dump_earning_season(FILE *pfinputfile, unsigned int count)
+static bool _Dump_earning_season(unsigned int code)
 {
-    if (pfinputfile == NULL || count == 0)
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
         return false;
 
-    SK_EARNING_SEASON *season= NULL;
-
-    season = malloc(sizeof(SK_EARNING_SEASON)*count+1);
-    if (season == NULL)
-        return false;
-
-    if (fread((char *)season, sizeof(SK_EARNING_SEASON), count, pfinputfile) == 0)
-    {
-        free(season);
-        return false;
-    }
-        
-    int index = 0;
-    for (index = 0; index< count; index++)
+    for (i = 0; stock[index].earning_s[i].year != 0; i++)
     {
         printf("%03d-%02d  %d, %d\n",
-            season[index].year,season[index].season,
-            season[index].pretax_income, season[index].aftertax_income);
+            stock[index].earning_s[i].year,stock[index].earning_s[i].season,
+            stock[index].earning_s[i].pretax_income, stock[index].earning_s[i].aftertax_income);
     }
-    free(season);
+
     return true;
 }
-
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile)
 {
@@ -130,7 +300,13 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
     FILE *pfinputfile = NULL;
     SK_HEADER header;
 
-    //open input file
+    /*read file to memory*/
+    if (!_SK_Fileread(Inputfile))
+    {
+        printf("parsing file failed : %s\n",Inputfile);
+    }
+
+    /*read header*/
     pfinputfile = fopen(Inputfile,"r");
     if (pfinputfile == NULL)
     {
@@ -138,37 +314,30 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
         goto FAILED;
     }
 
-    if (fread((char *)&header, sizeof(SK_HEADER), 1, pfinputfile)!=0)
+    /*read header*/
+    if (fread((char *)&header, sizeof(SK_HEADER), 1, pfinputfile) ==0)
     {
-        printf("code : %d \n",header.code);
-        printf("type : %d \n",header.type);
-        printf("datacount : %d \n",header.datacount);
-        printf("unidatasize : %d \n",header.unidatasize);
-        printf("datalength : %d \n",header.datalength);
-
-        int i =0;
-        for (i =0; i < 7; i++)
-        {
-            printf("reserved[%d] : %d \n",i,header.reserved[i]);
-        }    
+        printf("read header failed\n");
+        goto FAILED;
     }
 
+    /*dump data*/
     switch (header.type)
     {
         case SK_DATA_TYPE_PRICE:
-            _Dump_price(pfinputfile, header.datacount);
+            _Dump_price(header.code);
             break;  
             
         case SK_DATA_TYPE_DIVIDEND:
-             _Dump_dividend(pfinputfile, header.datacount);
+             _Dump_dividend(header.code);
             break;      
             
         case SK_DATA_TYPE_EARNING_MONTH:
-            _Dump_earning_month(pfinputfile, header.datacount);
+            _Dump_earning_month(header.code);
             break;
             
         case SK_DATA_TYPE_EARNING_SEASON:
-            _Dump_earning_season(pfinputfile, header.datacount);
+            _Dump_earning_season(header.code);
             break;
             
         default:
@@ -176,13 +345,63 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
             break;
     }
    
-    fclose(pfinputfile);
     bRet = true;
     
 FAILED:
-
+    if (pfinputfile != NULL)
+        fclose(pfinputfile);
+    
     return bRet;
 }
+
+bool SKApi_SKANALYSER_EPSEstimation(void)
+{
+    return false;
+}
+
+bool SKApi_SKANALYSER_Fileread(const char * path, const unsigned int code)
+{
+    bool bRet = false;
+    char filename[128];
+    memset(filename,'\0', 128);
+    sprintf(filename,"%s/%d.dividend",path,code);
+    if (!_SK_Fileread(filename))
+    {
+        printf("fread failed : %s\n",filename);
+    }
+
+    memset(filename,'\0', 128);
+    sprintf(filename,"%s/%d.earning.season",path,code);
+    if (!_SK_Fileread(filename))
+    {
+        printf("fread failed : %s\n",filename);
+    }
+
+    memset(filename,'\0', 128);
+    sprintf(filename,"%s/%d.earning.month",path,code);
+    if (!_SK_Fileread(filename))
+    {
+        printf("fread failed : %s\n",filename);
+    }
+
+    _Dump_dividend(code);
+    _Dump_earning_month(code);
+    _Dump_earning_season(code);
+    bRet = true;
+    return bRet;
+}
+
+bool SKApi_SKANALYSER_Init(void)
+{
+    _stock_freestock_all();
+    return true;
+}
+
+void  SKApi_SKANALYSER_Deinit(void)
+{
+    _stock_freestock_all();
+}
+
 
 bool SKApi_SKANALYSER_Help(void)
 {

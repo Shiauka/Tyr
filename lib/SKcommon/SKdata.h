@@ -61,6 +61,15 @@ typedef struct
     unsigned int strikenum;
 }SK_PRICE;
 
+typedef struct
+{
+    unsigned int code;
+    SK_PRICE *price;
+    SK_EARNING_SEASON *earning_s;
+    SK_EARNING_MONTH *earning_m;
+    SK_DIVIDEND *dividend;
+}SK_STOCK;
+
 
 #endif
 

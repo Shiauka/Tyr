@@ -43,6 +43,9 @@ int main(int argc, char *argv[])
     /*check input para with diff cmd*/
     if (!checkparanum(_intcommand,argc))
         return 0;
+    
+    if (!SKApi_SKANALYSER_Init())
+        return 0;
 
     /*start function*/
     switch (_intcommand)
@@ -52,12 +55,14 @@ int main(int argc, char *argv[])
             break;
 
         case SKANALYSER_TYPE_ANALYSIS:
-            printf("to be continue\n");
+            bRet = SKApi_SKANALYSER_Fileread(argv[2], atoi(argv[3]));
             break;
             
         default:
             break;
     }
+
+    SKApi_SKANALYSER_Deinit();
 
     if (!bRet)
     {
