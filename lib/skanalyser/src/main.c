@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
             break;
 
         case SKANALYSER_TYPE_ANALYSIS:
-            bRet = SKApi_SKANALYSER_Fileread(argv[2], atoi(argv[3]));
+            bRet = SKApi_SKANALYSER_Fileread(argv[2], argv[3]);
             break;
             
         default:

@@ -6,7 +6,7 @@
 
 
 #define FREE_MEM(x)     do{if (x != NULL) {free(x);}}while(0);       
-#define STOCK_NUM 10
+#define STOCK_NUM 1000
 static SK_STOCK stock[STOCK_NUM];
 
 static int _stock_getindex(unsigned int code)
@@ -359,35 +359,65 @@ bool SKApi_SKANALYSER_EPSEstimation(void)
     return false;
 }
 
-bool SKApi_SKANALYSER_Fileread(const char * path, const unsigned int code)
+bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
 {
     bool bRet = false;
+    FILE *flist = NULL;
+    unsigned int code = 0;
     char filename[128];
-    memset(filename,'\0', 128);
-    sprintf(filename,"%s/%d.dividend",path,code);
-    if (!_SK_Fileread(filename))
+    char line[16];
+    
+    /*open code list file*/
+    flist = fopen(codelist,"r");
+    if (flist == NULL)
     {
-        printf("fread failed : %s\n",filename);
+        printf("open file error: %s\n",codelist);
+        goto FAILED;
     }
 
-    memset(filename,'\0', 128);
-    sprintf(filename,"%s/%d.earning.season",path,code);
-    if (!_SK_Fileread(filename))
+    while(fgets(line, 16, flist) != NULL)
     {
-        printf("fread failed : %s\n",filename);
+        code = atoi(line);
+        if (code == 0)
+            break;
+        
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.dividend",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+    
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.earning.season",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+    
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.earning.month",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.price",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+
+        code = 0;
     }
 
-    memset(filename,'\0', 128);
-    sprintf(filename,"%s/%d.earning.month",path,code);
-    if (!_SK_Fileread(filename))
-    {
-        printf("fread failed : %s\n",filename);
-    }
-
-    _Dump_dividend(code);
-    _Dump_earning_month(code);
-    _Dump_earning_season(code);
     bRet = true;
+    
+FAILED:
+    if (flist!=NULL)
+        fclose(flist);
+    
     return bRet;
 }
 
