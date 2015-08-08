@@ -1,8 +1,8 @@
 
 #include "SKcommon.h"
 #include "SKdata.h"
+#include "skanalyser.h"
 #include "string.h"
-
 
 
 #define FREE_MEM(x)     do{if (x != NULL) {free(x);}}while(0);       
@@ -359,6 +359,90 @@ bool SKApi_SKANALYSER_EPSEstimation(void)
     return false;
 }
 
+bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
+{
+    bool bRet = false;
+    int index = _stock_getindex(code);
+    int i = 0;
+    if (index == -1)
+        goto   FAILED;
+
+    /*dividend average method*/ 
+    /*bad method*/
+    float dd_cash = 0, dd_stock = 0;
+    int weight = 0, weight_total = 0;
+    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
+    {
+        if (stock[index].dividend[i].year <= 98)
+            continue;
+        
+        weight++;
+        weight_total += weight;
+        dd_cash += stock[index].dividend[i].cash * weight;
+        dd_stock += stock[index].dividend[i].stock * weight;
+    }
+    
+    if (weight_total != 0)
+    {
+        dd_cash = dd_cash/weight_total;
+        dd_stock = dd_stock/weight_total;
+    }
+    printf("\n[cash : %0.02f], [stock : %0.02f]\n",dd_cash, dd_stock);
+
+
+    /*earning(month) dividend method*/
+    Earning_dividend_method EDM[3];
+    unsigned int temp_total = 0;
+    int j = 0;
+    for (i = 0; stock[index].earning_m[i].year != 0; i++)
+    {
+        EDM[j].year = stock[index].earning_m[i].year;
+        EDM[j].total += stock[index].earning_m[i].income;
+        if (j >= 1)
+            temp_total += stock[index].earning_m[i-12].income;
+        
+        if((i+1)%12 == 0)
+        {
+            temp_total = 0;
+            if (j >= 1)
+                EDM[j].percent = (float)EDM[j].total  / EDM[j-1].total; 
+            j++;
+        }
+    }
+
+    /*last percent*/
+    EDM[j].percent = (float)EDM[j].total  / temp_total; 
+
+    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
+    {
+        for (j = 0; j < 3; j++)
+        {
+            if (stock[index].dividend[i].year == EDM[j].year)
+            {
+                EDM[j].cash = stock[index].dividend[i].cash;
+                EDM[j].stock = stock[index].dividend[i].stock;
+            }
+        }
+    }
+
+    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[0].year, EDM[0].total, EDM[0].percent);
+    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[1].year,  EDM[1].total, EDM[1].percent);
+    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[2].year,  EDM[2].total, EDM[2].percent);
+
+    printf("[cash : %0.02f], [stock : %0.02f]\n",EDM[0].cash, EDM[0].stock);
+    printf("[cash : %0.02f], [stock : %0.02f]\n",EDM[1].cash, EDM[1].stock);
+
+    EDM[1].percent  = EDM[1].percent / (1+EDM[0].stock/10);
+    printf("[cash : %0.02f], [stock : %0.02f]\n\n",EDM[0].cash * EDM[1].percent , EDM[0].stock * EDM[1].percent);
+    //_Dump_dividend(code);
+    //_Dump_earning_month(code);
+
+    bRet = true;
+
+FAILED:    
+    return bRet;
+}
+
 bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
 {
     bool bRet = false;
@@ -409,6 +493,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             printf("fread failed : %s\n",filename);
         }
 
+        SKApi_SKANALYSER_DividendEstimation(code);
         code = 0;
     }
 
@@ -431,7 +516,6 @@ void  SKApi_SKANALYSER_Deinit(void)
 {
     _stock_freestock_all();
 }
-
 
 bool SKApi_SKANALYSER_Help(void)
 {
