@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 5)
+    if (argc < 4)
     {
         SKApi_CVS2SK_Help();
         return 0;
@@ -32,6 +32,10 @@ int main(int argc, char *argv[])
             
         case CVS2SK_EARNING:
             bRet = SKApi_CVS2SK_Earning(atoi(argv[2]), argv[3], argv[4], argv[5]);
+            break;
+
+        case CVS2SK_FINANCIALREPORT_S:
+            bRet = SKApi_CVS2SK_FINANCIALREPORT(argv[2],argv[3]);
             break;
             
         default:

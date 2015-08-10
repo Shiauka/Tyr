@@ -740,6 +740,97 @@ FAILED:
 
 }
 
+bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
+{
+    bool bRet = false;
+    FILE *pfinput = NULL;
+    pfinput = fopen(inputfile,"r");
+    if (pfinput == NULL)
+    {
+        printf("open file : %s failed \n",inputfile);
+        goto FAILED;
+    }
+
+    #define LINE_LEN 256
+    char line[LINE_LEN]="";
+    int index = 0;
+    int item = 0;
+    char *p_start=NULL,*p_end=NULL;
+    char temp[32];
+    int len = 0;
+    while(fgets(line,LINE_LEN,pfinput)!=NULL)
+    {
+        if (line[0]>='0' && line[0]<='9')
+        {
+            for (index = 0; index < strlen(line);index++)
+            {   
+                if (line[index] == '\t' )
+                {
+                    if (p_start != NULL)
+                        p_end = line + index;
+                    
+                    if (line[index+1]=='\t')
+                        p_start = line + index+1;
+                }
+                else if(line[index] == '\"' || line[index]==' ')
+                {
+                    if (p_start != NULL)
+                        p_end = line+index;
+                }
+                else if (p_start == NULL)
+                {
+                    p_start=line+index;
+                }
+                else if (line[index]=='\n')
+                {
+                    if (p_start != NULL)
+                        p_end = line+index-1;
+                    else
+                    {
+                        p_start = line+index;
+                        p_end = line+index;
+                    }
+                }
+                
+                if (p_start != NULL  && p_end != NULL)
+                {
+                    memset(temp,'\0',32);
+                    len = p_end - p_start;
+                    if (len < 0)
+                    {
+                        if (item == 0 || item == 2 || item == 5 || item == 7 || item == 9 || item == 12 || item == 19)
+                        {   
+                            printf("0\t");
+                        }
+                        item++;
+                    }               
+                    else
+                        memcpy(temp,p_start,p_end-p_start);
+                    if (item == 0 || item == 2 || item == 5 || item == 7 || item == 9 || item == 12 || item == 19)
+                    {
+                        if (len <= 0)
+                            printf("0\t");
+                        else
+                            printf("%s\t",temp);
+                    }
+                    p_start=NULL;
+                    p_end=NULL;
+                    item++;
+                }       
+            }
+            printf("\n");   
+        }
+        memset(line,'\0',LINE_LEN);
+        item = 0;
+    }
+
+    bRet = true;
+FAILED:
+    if (pfinput != NULL)
+        fclose(pfinput);
+    return bRet;
+}
+
 bool SKApi_CVS2SK_Help(void)
 {
     printf("\ncvs2sk [Command] [Code] [CVS file/CVS files List] [SK file] [SK file 2]\n\n");
