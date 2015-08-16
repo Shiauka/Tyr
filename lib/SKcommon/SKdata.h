@@ -2,6 +2,10 @@
 #ifndef SKDATA_H
 #define SKDATA_H
 
+//===========================
+// enum define
+//===========================
+
 typedef enum
 {
     SK_DATA_TYPE_DIVIDEND = 0,
@@ -11,6 +15,19 @@ typedef enum
     SK_DATA_TYPE_FINANCIALREPORT_SEASON = 4,
     SK_DATA_TYPE_MAX,
 }SK_DATA_TYPE;
+
+
+typedef enum
+{
+    /*TO DO*/
+
+   FINANCIAL_CLASS_NONE,
+}FINANCIAL_CLASS;
+
+
+//===========================
+// struct define
+//===========================
 
 typedef struct
 {
@@ -61,6 +78,23 @@ typedef struct
     float price_diff;
     unsigned int strikenum;
 }SK_PRICE;
+
+typedef struct
+{
+    unsigned int Code;
+    unsigned int Class;
+    unsigned int Year;
+    unsigned int Season;
+    int Operating_Revenues;
+    int Operating_Income;
+    int NonOperating_Income;
+    int Income_after_Tax;
+    unsigned int Capital_Stock;
+    int Income_before_Tax;
+    float EPS;
+    float EPS_Class;
+    float Operating_ratio; // Operating_Income / Total_Income
+}SK_FINANCIAL;
 
 typedef struct
 {

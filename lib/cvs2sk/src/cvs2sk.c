@@ -31,6 +31,34 @@ char *Skip_specific_character(const char* input, unsigned int len, char specific
     return strbuf;
 }
 
+char *Skip_specific_character_negative(const char* input, unsigned int len, char specific)
+{
+    unsigned int index = 0;    
+    unsigned int count = 0;
+
+    memset(strbuf,'\0',MAX_STRBUFFER_SIZE);
+
+    for (index = 0; index < len; index++)
+    {
+        if (input[index] == specific ||input[index] == ')' )
+        {
+            continue;
+        }
+        else if (input[index] == '(')
+        {
+            strbuf[count] = '-';
+            count++;
+        }
+        else
+        {
+            strbuf[count] = input[index];
+            count++;
+        }
+    }
+    
+    return strbuf;
+}
+
 void Sort_dividend( SK_DIVIDEND *dividend, int num)
 {
     SK_DIVIDEND temp;
@@ -740,10 +768,169 @@ FAILED:
 
 }
 
+#define LINE_LEN 256
+#define FINANCIAL_NEW_NUM 1500
+
+static void _Item2Financial(int item, char *str, SK_FINANCIAL* financial)
+{
+    int Operating_total = 0;
+    static unsigned int Class = 0;
+
+    switch (item)
+    {
+        case 0:
+            financial->Code = atoi(str);
+            if (financial->Code < 1000) // class, not stock
+            {
+                Class = financial->Code;
+            }
+            financial->Class = Class;
+            break;
+            
+        case 2:
+            financial->Operating_Revenues = atoi(str);
+            break;
+            
+        case 5:
+            financial->Operating_Income = atoi(str);
+            break;
+            
+        case 7:
+            financial->NonOperating_Income = atoi(str);
+            Operating_total =  financial->Operating_Income+financial->NonOperating_Income;
+            if (Operating_total  >= 0 )
+                financial->Operating_ratio = ((float)financial->Operating_Income) / Operating_total;
+            break;
+            
+        case 9:
+            financial->Income_after_Tax = atoi(str);
+            break;
+            
+        case 12:
+            financial->Capital_Stock = atoi(str);
+            if (financial->Capital_Stock != 0 )
+                financial->EPS = ((float)financial->Income_after_Tax) / financial->Capital_Stock * 10;
+            break;
+            
+        case 19:
+            financial->Income_before_Tax = atoi(str);
+            break;
+            
+        default:
+            break;
+    }
+}
+
+static bool _Financial_parsing(char *line, SK_FINANCIAL* financial)
+{
+    char *p_start=NULL,*p_end=NULL;
+    int index = 0;
+    int item = 0;
+    char temp[32];
+    int len = 0;
+    bool bRet = false;
+
+    for (index = 0; index < strlen(line);index++)
+     {   
+         if (line[index] == '\t' )
+         {
+             if (p_start != NULL)
+                 p_end = line + index;
+             
+             if (line[index+1]=='\t')
+                 p_start = line + index+1;
+         }
+         else if(line[index] == '\"' || line[index]==' ')
+         {
+             if (p_start != NULL)
+                 p_end = line+index;
+         }
+         else if (p_start == NULL)
+         {
+             p_start=line+index;
+         }
+         else if (line[index]=='\n')
+         {
+             if (p_start != NULL)
+                 p_end = line+index-1;
+             else
+             {
+                 p_start = line+index;
+                 p_end = line+index;
+             }
+         }
+         
+         if (p_start != NULL  && p_end != NULL)
+         {
+             memset(temp,'\0',32);
+             len = p_end - p_start;
+             if (len < 0)
+             {
+                _Item2Financial(item, "0", financial);
+                 item++;
+             }               
+             else
+                 memcpy(temp,p_start,p_end-p_start);
+             
+             if (item == 0 || item == 2 || item == 5 || item == 7 || item == 9 || item == 12 || item == 19)
+             {
+                 if (len <= 0)
+                    _Item2Financial(item, "0", financial);
+                 else
+                    _Item2Financial(item, Skip_specific_character_negative(temp,strlen(temp),','), financial);
+             }
+             p_start=NULL;
+             p_end=NULL;
+             item++;
+         }       
+     }
+    
+    bRet = true;
+    return bRet;
+}
+
+static void _Calculate_EPS_class(SK_FINANCIAL * financial)
+{
+    int index = 0;
+    float classeps[100] = {0}; // 100 is class number
+    int classnum[100] = {0}; // 100 is class number
+    
+    for (index = 0; index < FINANCIAL_NEW_NUM; index++)
+    {
+        if (financial[index].Code < 1000)
+        {
+            classeps[0] += financial[index].EPS;
+            classnum[0]++;
+        }
+        else
+        {
+            classeps[financial[index].Class] += financial[index].EPS;
+            classnum[financial[index].Class]++;
+        }
+
+        if (financial[index].Code == 0)
+            break;
+    }
+
+
+    for (index = 0; index < FINANCIAL_NEW_NUM; index++)
+    {
+        financial[index].EPS_Class = classeps[financial[index].Class] / classnum[financial[index].Class];
+
+        if (financial[index].Code == 0)
+            break;
+    }
+    
+}
+
 bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
 {
     bool bRet = false;
     FILE *pfinput = NULL;
+    char line[LINE_LEN]="";
+    SK_FINANCIAL *Financial_new = NULL;
+    int index = 0;
+    
     pfinput = fopen(inputfile,"r");
     if (pfinput == NULL)
     {
@@ -751,83 +938,49 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         goto FAILED;
     }
 
-    #define LINE_LEN 256
-    char line[LINE_LEN]="";
-    int index = 0;
-    int item = 0;
-    char *p_start=NULL,*p_end=NULL;
-    char temp[32];
-    int len = 0;
+    Financial_new =  malloc(sizeof(SK_FINANCIAL)*FINANCIAL_NEW_NUM);
+    if (Financial_new == NULL)
+    {
+        printf("alloc mem  failed : Financial_new\n");
+        goto FAILED;
+    }
+    memset(Financial_new, '\0',sizeof(SK_FINANCIAL)*FINANCIAL_NEW_NUM);
+
+    //parsing new financial report
     while(fgets(line,LINE_LEN,pfinput)!=NULL)
     {
         if (line[0]>='0' && line[0]<='9')
         {
-            for (index = 0; index < strlen(line);index++)
-            {   
-                if (line[index] == '\t' )
-                {
-                    if (p_start != NULL)
-                        p_end = line + index;
-                    
-                    if (line[index+1]=='\t')
-                        p_start = line + index+1;
-                }
-                else if(line[index] == '\"' || line[index]==' ')
-                {
-                    if (p_start != NULL)
-                        p_end = line+index;
-                }
-                else if (p_start == NULL)
-                {
-                    p_start=line+index;
-                }
-                else if (line[index]=='\n')
-                {
-                    if (p_start != NULL)
-                        p_end = line+index-1;
-                    else
-                    {
-                        p_start = line+index;
-                        p_end = line+index;
-                    }
-                }
-                
-                if (p_start != NULL  && p_end != NULL)
-                {
-                    memset(temp,'\0',32);
-                    len = p_end - p_start;
-                    if (len < 0)
-                    {
-                        if (item == 0 || item == 2 || item == 5 || item == 7 || item == 9 || item == 12 || item == 19)
-                        {   
-                            printf("0\t");
-                        }
-                        item++;
-                    }               
-                    else
-                        memcpy(temp,p_start,p_end-p_start);
-                    if (item == 0 || item == 2 || item == 5 || item == 7 || item == 9 || item == 12 || item == 19)
-                    {
-                        if (len <= 0)
-                            printf("0\t");
-                        else
-                            printf("%s\t",temp);
-                    }
-                    p_start=NULL;
-                    p_end=NULL;
-                    item++;
-                }       
-            }
-            printf("\n");   
+            if (_Financial_parsing(line, &Financial_new[index]))
+                index++;
         }
         memset(line,'\0',LINE_LEN);
-        item = 0;
     }
 
+    _Calculate_EPS_class(Financial_new);
+
+    for (index = 0; index < FINANCIAL_NEW_NUM; index++)
+    {
+        printf("%d,  %d, %d, %f, %f,%f\n",
+        Financial_new[index].Code, 
+        Financial_new[index].Class, 
+        Financial_new[index].NonOperating_Income,
+        Financial_new[index].EPS,
+        Financial_new[index].EPS_Class,
+        Financial_new[index].Operating_ratio);
+        if (Financial_new[index].Code == 0)
+            break;
+    }
+
+    //TODO 1: parsing - older financial report
+
+    //TODO 2: combine - new financial report
+    
     bRet = true;
 FAILED:
-    if (pfinput != NULL)
-        fclose(pfinput);
+    if (pfinput != NULL) {fclose(pfinput); pfinput = NULL;}
+    if (Financial_new != NULL)  {free(Financial_new); Financial_new = NULL;}
+    
     return bRet;
 }
 
