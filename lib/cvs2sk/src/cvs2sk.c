@@ -923,13 +923,42 @@ static void _Calculate_EPS_class(SK_FINANCIAL * financial)
     
 }
 
+void *SK_Realloc(void *ptr, size_t size)
+{
+    void *Ret = NULL;
+    Ret = realloc(ptr,size);
+    if (ptr == NULL && Ret != NULL)
+        memset(Ret,'\0',size);
+    return Ret;
+}
+
+void *SK_Malloc(size_t size)
+{
+    void *Ret = NULL;
+    Ret = malloc(size);
+    if (Ret != NULL)
+        memset(Ret,'\0',size);
+    return Ret;
+}
+
+void SK_Free(void *ptr)
+{
+    free(ptr);
+}
+
 bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
 {
     bool bRet = false;
     FILE *pfinput = NULL;
+    FILE *pfoutput = NULL;
     char line[LINE_LEN]="";
     SK_FINANCIAL *Financial_new = NULL;
+    SK_FINANCIAL *Financial_old = NULL;
+    SK_HEADER  *header = NULL;
     int index = 0;
+    int loop = 0;
+    char outputfilename[128];
+    char *pstr = NULL;
     
     pfinput = fopen(inputfile,"r");
     if (pfinput == NULL)
@@ -968,14 +997,102 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         Financial_new[index].EPS,
         Financial_new[index].EPS_Class,
         Financial_new[index].Operating_ratio);
-        if (Financial_new[index].Code == 0)
+        
+        sprintf(outputfilename,"%s%d.financial",outpath,Financial_new[index].Code);
+        pfoutput = fopen(outputfilename,"a+");
+        if (pfoutput == NULL)
+        {
+            printf("open file : %s failed \n",outputfilename);
+            goto ERROR;
+        }
+
+        header =  SK_Malloc(sizeof(SK_HEADER));
+        if (header == NULL)
+        {
+            printf("alloc mem  failed : header\n");
+            goto ERROR;
+        }
+
+        /*read header and old financial report*/
+        if (fread(header, sizeof(SK_HEADER), 1, pfoutput) ==0)
+        {
+            //new file
+            ;
+        }
+        else
+        {
+            //already exist file
+            // parsing - older financial report
+            Financial_old =  SK_Malloc(sizeof(SK_FINANCIAL)*header->datacount);
+            if (Financial_old == NULL)
+            {
+                printf("alloc mem  failed : Financial_old\n");
+                goto ERROR;
+            }
+            if (fread(Financial_old, sizeof(SK_FINANCIAL), header->datacount, pfoutput) ==0)
+            {
+                printf("read Financial report failed\n");
+                goto ERROR;
+            }
+            
+            fclose(pfoutput);
+            pfoutput = fopen(outputfilename,"w");
+        }
+
+        if (header->datacount == 0)
+        {
+            //new report
+            header->code = Financial_new[index].Code;
+            header->type = SK_DATA_TYPE_FINANCIALREPORT_SEASON;
+            header->datacount = 1;
+            header->unidatasize = sizeof(SK_FINANCIAL);
+            header->datalength = header->datacount * sizeof(SK_FINANCIAL);
+
+            Financial_old = SK_Realloc(Financial_old, sizeof(SK_FINANCIAL));
+            if (Financial_old==NULL)
+            {
+                printf("alloc mem  failed : Financial_old\n");
+                goto ERROR;
+            }
+            memcpy(&Financial_old[0],&Financial_new[index], sizeof(SK_FINANCIAL));
+        }
+        else
+        {
+            //TODO: add check same financial report flow
+            header->datacount++;
+            header->datalength = header->datacount * sizeof(SK_FINANCIAL);
+            Financial_old = SK_Realloc(Financial_old, header->datalength);
+            if (Financial_old==NULL)
+            {
+                printf("alloc mem  failed : Financial_old\n");
+                goto ERROR;
+            }
+            memcpy(&Financial_old[header->datacount-1],&Financial_new[index], sizeof(SK_FINANCIAL));
+        }
+
+        //output financial report to outpu file
+        pstr = (char *)header;
+        for (loop = 0; loop < sizeof(SK_HEADER); loop++)
+        {
+            fprintf(pfoutput,"%c", pstr[loop]);
+        }
+
+        pstr = (char *)Financial_old;
+        for (loop = 0; loop < header->datalength; loop++)
+        {
+            fprintf(pfoutput,"%c", pstr[loop]);
+        }
+       
+ERROR:
+        if (pfoutput != NULL) {fclose(pfoutput);pfoutput=NULL;}
+        if (header !=NULL){SK_Free(header);header = NULL;}
+        if (Financial_old !=NULL){SK_Free(Financial_old);Financial_old = NULL;}
+
+        
+        if (Financial_new[index].Code == 0) // zero is the laster financial report
             break;
     }
 
-    //TODO 1: parsing - older financial report
-
-    //TODO 2: combine - new financial report
-    
     bRet = true;
 FAILED:
     if (pfinput != NULL) {fclose(pfinput); pfinput = NULL;}
