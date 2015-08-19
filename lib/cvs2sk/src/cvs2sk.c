@@ -821,6 +821,48 @@ static void _Item2Financial(int item, char *str, SK_FINANCIAL* financial)
     }
 }
 
+static bool _Financial_dateparsing(char *line, int *season, int *year)
+{
+    bool bRet = false;
+    char *pstr = NULL;
+    int data_count = 0;
+
+    pstr = strtok(line," \t\n");
+    while(pstr != NULL)
+    {
+        if (data_count >= 2)
+            break;
+
+        if (data_count == 0)
+        {
+            if(strncmp(pstr,"Jan-Mar",7)==0)
+            {
+                *season = 1;
+            }
+            else if (strncmp(pstr,"Jan-Jun",7)==0)
+            {
+                *season = 2;
+            }
+            else if (strncmp(pstr,"Jan-Sep",7)==0)
+            {
+                *season = 3;
+            }
+            else if (strncmp(pstr,"Jan-Dec",7)==0)
+            {
+                *season = 4;
+            }
+        }
+        else if (data_count == 1)
+        {
+            *year = atoi(pstr);
+        }
+        pstr = strtok(NULL," \t\n");
+        data_count++;
+    }    
+    bRet = true;
+    return bRet;
+}
+
 static bool _Financial_parsing(char *line, SK_FINANCIAL* financial)
 {
     char *p_start=NULL,*p_end=NULL;
@@ -952,6 +994,7 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
     FILE *pfinput = NULL;
     FILE *pfoutput = NULL;
     char line[LINE_LEN]="";
+    int line_count = 0;
     SK_FINANCIAL *Financial_new = NULL;
     SK_FINANCIAL *Financial_old = NULL;
     SK_HEADER  *header = NULL;
@@ -959,6 +1002,8 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
     int loop = 0;
     char outputfilename[128];
     char *pstr = NULL;
+    int season =0;
+    int year = 0;
     
     pfinput = fopen(inputfile,"r");
     if (pfinput == NULL)
@@ -981,16 +1026,28 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         if (line[0]>='0' && line[0]<='9')
         {
             if (_Financial_parsing(line, &Financial_new[index]))
+            {
+                Financial_new[index].Year = year;
+                Financial_new[index].Season = season;
                 index++;
+            }
+        }
+        else if (line_count == 1)
+        {
+            _Financial_dateparsing(line, &season, &year);
         }
         memset(line,'\0',LINE_LEN);
+        line_count++;
     }
 
     _Calculate_EPS_class(Financial_new);
 
     for (index = 0; index < FINANCIAL_NEW_NUM; index++)
     {
-        printf("%d,  %d, %d, %f, %f,%f\n",
+        
+        printf("%d-%d, %d,  %d, %d, %f, %f,%f\n",
+        Financial_new[index].Year, 
+        Financial_new[index].Season,
         Financial_new[index].Code, 
         Financial_new[index].Class, 
         Financial_new[index].NonOperating_Income,
@@ -1017,7 +1074,6 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         if (fread(header, sizeof(SK_HEADER), 1, pfoutput) ==0)
         {
             //new file
-            ;
         }
         else
         {
