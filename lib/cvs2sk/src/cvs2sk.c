@@ -821,6 +821,44 @@ static void _Item2Financial(int item, char *str, SK_FINANCIAL* financial)
     }
 }
 
+void Financial_sort( int num, SK_FINANCIAL* Financial )
+{
+    SK_FINANCIAL temp;
+    int i,j;
+
+    for (i = 0; i < num; i++)
+    {
+        for (j = 0; j < num -i - 1; j++)
+        {
+            if (Financial[j].Year > Financial[j+1].Year || 
+                (Financial[j].Year == Financial[j+1].Year && Financial[j].Season>= Financial[j+1].Season))
+            {
+                memcpy(&temp, &Financial[j],sizeof(SK_FINANCIAL));
+                memcpy(&Financial[j], &Financial[j+1],sizeof(SK_FINANCIAL));
+                memcpy(&Financial[j+1], &temp,sizeof(SK_FINANCIAL));
+            }
+        }
+    }
+}
+
+static bool Financial_check(int count, SK_FINANCIAL* Financial_old,  SK_FINANCIAL *Financial_new)
+{
+    //check same financial report flow
+    bool bRet = false;
+    int index = 0;
+    for (index = 0; index < count; index++)
+    {
+        if(Financial_old[index].Year == Financial_new->Year && 
+        Financial_old[index].Season== Financial_new->Season)
+        {
+            bRet = true;
+            break;
+        }
+    }
+    
+    return bRet;
+}
+
 static bool _Financial_dateparsing(char *line, int *season, int *year)
 {
     bool bRet = false;
@@ -1114,16 +1152,19 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         }
         else
         {
-            //TODO: add check same financial report flow
-            header->datacount++;
-            header->datalength = header->datacount * sizeof(SK_FINANCIAL);
-            Financial_old = SK_Realloc(Financial_old, header->datalength);
-            if (Financial_old==NULL)
+            if (!Financial_check(header->datacount, Financial_old, &Financial_new[index]))
             {
-                printf("alloc mem  failed : Financial_old\n");
-                goto ERROR;
+                header->datacount++;
+                header->datalength = header->datacount * sizeof(SK_FINANCIAL);
+                Financial_old = SK_Realloc(Financial_old, header->datalength);
+                if (Financial_old==NULL)
+                {
+                    printf("alloc mem  failed : Financial_old\n");
+                    goto ERROR;
+                }
+                memcpy(&Financial_old[header->datacount-1],&Financial_new[index], sizeof(SK_FINANCIAL));
+                Financial_sort(header->datacount,Financial_old);
             }
-            memcpy(&Financial_old[header->datacount-1],&Financial_new[index], sizeof(SK_FINANCIAL));
         }
 
         //output financial report to outpu file
