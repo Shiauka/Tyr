@@ -138,9 +138,15 @@ static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
             FREE_MEM(stock[index].earning_s);
             stock[index].earning_s = (SK_EARNING_SEASON *)p;
             break;
-            
+
+        case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
+             /*TODO:  add parsing origanl data and combine flow*/ 
+            FREE_MEM(stock[index].financial);
+            stock[index].financial = (SK_FINANCIAL *)p;
+            break;
+
         default:
-            printf("Code: %d has incorrect type",header.code);
+            printf("Code: %d has incorrect type\n",header.code);
             return false;
     }
 
@@ -171,6 +177,10 @@ static bool _SK_Datasave(SK_HEADER header, FILE *pfinputfile)
             bRet = _stock_savedata(header, pfinputfile);
             break;
             
+        case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
+            bRet = _stock_savedata(header, pfinputfile);
+            break;
+
         default:
             printf("Code: %d has incorrect type",header.code);
             break;
@@ -294,6 +304,31 @@ static bool _Dump_earning_season(unsigned int code)
     return true;
 }
 
+static bool _Dump_financial_report(unsigned int code)
+{
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
+        return false;
+
+    for (i = 0; stock[index].financial[i].Year!= 0; i++)
+    {
+        printf("%03d-%02d  %d, %d, %d, %d, %d, %d, %0.2f, %0.2f, %0.2f\n",
+            stock[index].financial[i].Year,stock[index].financial[i].Season,
+            stock[index].financial[i].Operating_Revenues, 
+            stock[index].financial[i].Operating_Income,
+            stock[index].financial[i].NonOperating_Income, 
+            stock[index].financial[i].Income_after_Tax,
+            stock[index].financial[i].Capital_Stock, 
+            stock[index].financial[i].Income_before_Tax,
+            stock[index].financial[i].EPS, 
+            stock[index].financial[i].EPS_Class, 
+            stock[index].financial[i].Operating_ratio
+            );
+    }
+    return true;
+}
+
 bool SKApi_SKANALYSER_Dump(const char *Inputfile)
 {
     bool bRet = false;
@@ -338,6 +373,10 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
             
         case SK_DATA_TYPE_EARNING_SEASON:
             _Dump_earning_season(header.code);
+            break;
+
+        case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
+            _Dump_financial_report(header.code);
             break;
             
         default:

@@ -103,6 +103,7 @@ typedef struct
     SK_EARNING_SEASON *earning_s;
     SK_EARNING_MONTH *earning_m;
     SK_DIVIDEND *dividend;
+    SK_FINANCIAL *financial;
 }SK_STOCK;
 
 
