@@ -22,6 +22,18 @@ typedef struct
     float cash;
 }Earning_dividend_method;
 
+/*financial dividend method*/
+typedef struct
+{
+    unsigned int year;
+    unsigned int season;
+    float EPS;
+    float stock;
+    float cash;
+    float ratio_stock; //EPS vs stock
+    float ratio_cash; //EPS vs cash
+}Fnancial_dividend_method;
+
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
 bool SKApi_SKANALYSER_Help(void);
