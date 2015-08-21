@@ -1082,7 +1082,8 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
 
     for (index = 0; index < FINANCIAL_NEW_NUM; index++)
     {
-        
+
+        /*
         printf("%d-%d, %d,  %d, %d, %f, %f,%f\n",
         Financial_new[index].Year, 
         Financial_new[index].Season,
@@ -1092,6 +1093,7 @@ bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath)
         Financial_new[index].EPS,
         Financial_new[index].EPS_Class,
         Financial_new[index].Operating_ratio);
+        */
         
         sprintf(outputfilename,"%s%d.financial",outpath,Financial_new[index].Code);
         pfoutput = fopen(outputfilename,"a+");

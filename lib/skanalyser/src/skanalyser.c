@@ -398,36 +398,13 @@ bool SKApi_SKANALYSER_EPSEstimation(void)
     return false;
 }
 
-bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
+static bool DividendEstimation_earningdividendmethod(unsigned int code)
 {
     bool bRet = false;
     int index = _stock_getindex(code);
     int i = 0;
     if (index == -1)
         goto   FAILED;
-
-    /*dividend average method*/ 
-    /*bad method*/
-    float dd_cash = 0, dd_stock = 0;
-    int weight = 0, weight_total = 0;
-    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
-    {
-        if (stock[index].dividend[i].year <= 98)
-            continue;
-        
-        weight++;
-        weight_total += weight;
-        dd_cash += stock[index].dividend[i].cash * weight;
-        dd_stock += stock[index].dividend[i].stock * weight;
-    }
-    
-    if (weight_total != 0)
-    {
-        dd_cash = dd_cash/weight_total;
-        dd_stock = dd_stock/weight_total;
-    }
-    printf("\n[cash : %0.02f], [stock : %0.02f]\n",dd_cash, dd_stock);
-
 
     /*earning(month) dividend method*/
     Earning_dividend_method EDM[3];
@@ -464,21 +441,70 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
         }
     }
 
-    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[0].year, EDM[0].total, EDM[0].percent);
-    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[1].year,  EDM[1].total, EDM[1].percent);
-    printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[2].year,  EDM[2].total, EDM[2].percent);
+    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[0].year, EDM[0].total, EDM[0].percent);
+    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[1].year,  EDM[1].total, EDM[1].percent);
+    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[2].year,  EDM[2].total, EDM[2].percent);
 
-    printf("[cash : %0.02f], [stock : %0.02f]\n",EDM[0].cash, EDM[0].stock);
-    printf("[cash : %0.02f], [stock : %0.02f]\n",EDM[1].cash, EDM[1].stock);
-
+    printf("REAL: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[0].year,EDM[0].cash, EDM[0].stock);
+    printf("REAL: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[1].year,EDM[1].cash, EDM[1].stock);
+    
     EDM[1].percent  = EDM[1].percent / (1+EDM[0].stock/10);
-    printf("[cash : %0.02f], [stock : %0.02f]\n\n",EDM[0].cash * EDM[1].percent , EDM[0].stock * EDM[1].percent);
-    //_Dump_dividend(code);
-    //_Dump_earning_month(code);
+    printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[1].year, EDM[0].cash * EDM[1].percent , EDM[0].stock * EDM[1].percent);
+    EDM[2].percent  = EDM[2].percent / (1+EDM[1].stock/10);
+    printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[2].year, EDM[1].cash * EDM[2].percent , EDM[1].stock * EDM[2].percent);
 
     bRet = true;
 
 FAILED:    
+    return bRet;
+}
+
+static bool DividendEstimation_dividendaveragemethod(unsigned int code)
+{
+    bool bRet = false;
+    int index = _stock_getindex(code);
+    int i = 0;
+    int lastyear = 0;
+    if (index == -1)
+        goto   FAILED;
+    
+    /*dividend average method*/ 
+    /*bad method*/
+    float dd_cash = 0, dd_stock = 0;
+    int weight = 0, weight_total = 0;
+    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
+    {
+        if (stock[index].dividend[i].year <= 98)
+            continue;
+        
+        if (stock[index].dividend[i].year >= lastyear)
+            lastyear = stock[index].dividend[i].year;
+                
+        weight++;
+        weight_total += weight;
+        dd_cash += stock[index].dividend[i].cash * weight;
+        dd_stock += stock[index].dividend[i].stock * weight;
+    }
+    
+    if (weight_total != 0)
+    {
+        dd_cash = dd_cash/weight_total;
+        dd_stock = dd_stock/weight_total;
+    }
+    printf("DAM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",lastyear+1,dd_cash, dd_stock);
+    
+    bRet = true;
+    
+FAILED:    
+        return bRet;
+}
+
+bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
+{
+    bool bRet = false;
+    bRet = DividendEstimation_earningdividendmethod(code);
+    bRet = DividendEstimation_dividendaveragemethod(code);
+   
     return bRet;
 }
 
