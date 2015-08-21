@@ -406,6 +406,9 @@ static bool DividendEstimation_earningdividendmethod(unsigned int code)
     if (index == -1)
         goto   FAILED;
 
+    if (stock[index].dividend == NULL || stock[index].earning_m == NULL)
+        goto FAILED;
+
     /*earning(month) dividend method*/
     Earning_dividend_method EDM[3];
     unsigned int temp_total = 0;
@@ -459,7 +462,7 @@ FAILED:
     return bRet;
 }
 
-static bool DividendEstimation_dividendaveragemethod(unsigned int code)
+static bool DividendEstimation_averagedividendmethod(unsigned int code)
 {
     bool bRet = false;
     int index = _stock_getindex(code);
@@ -467,8 +470,11 @@ static bool DividendEstimation_dividendaveragemethod(unsigned int code)
     int lastyear = 0;
     if (index == -1)
         goto   FAILED;
+
+    if (stock[index].dividend == NULL)
+        goto FAILED;
     
-    /*dividend average method*/ 
+    /*average dividend  method*/ 
     /*bad method*/
     float dd_cash = 0, dd_stock = 0;
     int weight = 0, weight_total = 0;
@@ -491,7 +497,7 @@ static bool DividendEstimation_dividendaveragemethod(unsigned int code)
         dd_cash = dd_cash/weight_total;
         dd_stock = dd_stock/weight_total;
     }
-    printf("DAM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",lastyear+1,dd_cash, dd_stock);
+    printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",lastyear+1,dd_cash, dd_stock);
     
     bRet = true;
     
@@ -499,11 +505,66 @@ FAILED:
         return bRet;
 }
 
+static bool DividendEstimation_financialdividendmethod(unsigned int code)
+{
+        bool bRet = false;
+        int index = _stock_getindex(code);
+        int i_loop1 = 0;
+        int j_loop2 = 0;
+        if (index == -1)
+            goto   FAILED;
+
+        if (stock[index].dividend == NULL || stock[index].financial == NULL)
+            goto FAILED;
+        
+        /*financial dividend method*/ 
+        Fnancial_dividend_method FDM[100];
+        float average[4] = {0};
+        int count = 0;
+        memset(FDM,'\0',sizeof(Fnancial_dividend_method)*100);
+        for (i_loop1  = 0; stock[index].financial[i_loop1].Year!=0; i_loop1++)
+        {
+            FDM[i_loop1].year = stock[index].financial[i_loop1].Year - 1911;
+            FDM[i_loop1].season= stock[index].financial[i_loop1].Season;
+            FDM[i_loop1].EPS= stock[index].financial[i_loop1].EPS;
+            for (j_loop2 = 0; stock[index].dividend[j_loop2].year!=0;j_loop2++)
+            {
+                if(stock[index].dividend[j_loop2].year ==FDM[i_loop1].year )
+                {
+                    FDM[i_loop1].stock = stock[index].dividend[j_loop2].stock;
+                    FDM[i_loop1].cash = stock[index].dividend[j_loop2].cash;
+                    FDM[i_loop1].ratio_stock = FDM[i_loop1].stock / FDM[i_loop1].EPS;
+                    FDM[i_loop1].ratio_cash = FDM[i_loop1].cash / FDM[i_loop1].EPS;
+                    break;
+                }
+            }
+        }
+
+        for (i_loop1  = 0; FDM[i_loop1].year!=0; i_loop1++)
+        {
+            printf("REAL: [year: %d],[season: %d][EPS:%0.02f],[cash : %0.02f (%0.02f)],[stock : %0.02f (%0.02f)]\n",
+                FDM[i_loop1].year,
+                FDM[i_loop1].season,
+                FDM[i_loop1].EPS,
+                FDM[i_loop1].cash,
+                FDM[i_loop1].ratio_cash,
+                FDM[i_loop1].stock,
+                FDM[i_loop1].ratio_stock);
+        }
+        
+        bRet = true;
+        
+    FAILED:    
+            return bRet;
+
+}
+
 bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
 {
     bool bRet = false;
     bRet = DividendEstimation_earningdividendmethod(code);
-    bRet = DividendEstimation_dividendaveragemethod(code);
+    bRet = DividendEstimation_averagedividendmethod(code);
+    bRet = DividendEstimation_financialdividendmethod(code);
    
     return bRet;
 }
@@ -536,14 +597,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         {
             printf("fread failed : %s\n",filename);
         }
-    
-        memset(filename,'\0', 128);
-        sprintf(filename,"%s/%d.earning.season",path,code);
-        if (!_SK_Fileread(filename))
-        {
-            printf("fread failed : %s\n",filename);
-        }
-    
+
         memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.earning.month",path,code);
         if (!_SK_Fileread(filename))
@@ -552,7 +606,21 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         }
 
         memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.earning.season",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+
+        memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.price",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+        }
+
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.financial",path,code);
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
