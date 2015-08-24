@@ -648,7 +648,7 @@ static bool _DividendEstimation_averagedividendmethod(unsigned int code, unsigne
     int weight = 0, weight_total = 0;
     for (i  = 0; stock[index].dividend[i].year!=0; i ++)
     {
-        if (stock[index].dividend[i].year <  year - 5)
+        if (stock[index].dividend[i].year <  year - 5 || stock[index].dividend[i].year >=  year)
             continue;
         
         if (stock[index].dividend[i].year >= lastyear)
@@ -680,7 +680,7 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
     unsigned int year = 104;
     unsigned int count = 0;
     Estimation_dividend Dividend_final = {0};
-    
+
     if (_DividendEstimation_averagedividendmethod(code,year,&Dividend))
     {
         printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
@@ -711,7 +711,7 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
         Dividend_final.stock /= count;
         printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock);    
     }
-
+    
     return bRet;
 }
 
