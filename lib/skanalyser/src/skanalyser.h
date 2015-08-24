@@ -30,8 +30,8 @@ typedef struct
     float EPS;
     float stock;
     float cash;
-    float ratio_stock; //EPS vs stock
-    float ratio_cash; //EPS vs cash
+    float fdm_stock;
+    float fdm_cash;
 }Fnancial_dividend_method;
 
 
