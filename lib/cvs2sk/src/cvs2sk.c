@@ -892,7 +892,7 @@ static bool _Financial_dateparsing(char *line, int *season, int *year)
         }
         else if (data_count == 1)
         {
-            *year = atoi(pstr)-1911;
+            *year = (atoi(pstr)-1911);
         }
         pstr = strtok(NULL," \t\n");
         data_count++;

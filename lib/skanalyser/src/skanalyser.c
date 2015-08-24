@@ -91,6 +91,27 @@ static void _stock_freestock_all(void)
     }
 }
 
+static void _optimize_earning_month(SK_EARNING_MONTH *earning_m)
+{
+    int i = 0;
+    unsigned int total = 0;
+    unsigned int year = 0;
+
+    for (i = 0; earning_m[i].year != 0; i++)
+    {
+        if (year != earning_m[i].year)
+        {
+            year = earning_m[i].year;
+            total = 0;
+        }
+        else
+        {
+            total += earning_m[i].income;
+            earning_m[i].income = total;
+        }
+    }
+}
+
 static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
 {
     int index = _stock_getfreeindex(header.code);
@@ -131,6 +152,7 @@ static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
             /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].earning_m); 
             stock[index].earning_m = (SK_EARNING_MONTH *)p;
+            _optimize_earning_month(stock[index].earning_m);
             break;
             
         case SK_DATA_TYPE_EARNING_SEASON:
@@ -442,82 +464,115 @@ FAILED:
     return NULL;
 }
 
-static bool DividendEstimation_financialdividendmethod(unsigned int code)
+static SK_EARNING_MONTH* _GetEarningmonthReport(unsigned int code, unsigned int year, unsigned int month)
 {
-        bool bRet = false;
-        int index = _stock_getindex(code);
-        int i = 0;
-        if (index == -1)
-            goto   FAILED;
-    
-        if (stock[index].dividend == NULL || stock[index].financial== NULL)
-            goto FAILED;
-    
-        /*financial dividend method*/
-        Fnancial_dividend_method FDM[100];
-        memset(FDM,'\0',sizeof(Fnancial_dividend_method)*100);
-        
-        SK_FINANCIAL *last_financial = NULL;
-        SK_FINANCIAL *last2_financial = NULL;
-        SK_DIVIDEND *curdividend = NULL;
-        SK_DIVIDEND *lastdividend = NULL;
-        for (i = 0; stock[index].financial[i].Year != 0; i++)
-        {
-            FDM[i].year=stock[index].financial[i].Year;
-            FDM[i].season=stock[index].financial[i].Season;
-            FDM[i].EPS =stock[index].financial[i].EPS;
-            curdividend = _GetDividendReport(code,stock[index].financial[i].Year-1911);
-            lastdividend = _GetDividendReport(code,stock[index].financial[i].Year-1-1911);            
-            last_financial = _GetFinancialReport(code,stock[index].financial[i].Year-1,stock[index].financial[i].Season);
-            if (last_financial != NULL && lastdividend != NULL && FDM[i].EPS > 0)
-            {
-                if (last_financial->EPS <= 0)
-                {
-                    last2_financial = _GetFinancialReport(code,stock[index].financial[i].Year-2,stock[index].financial[i].Season);
-                    if (last2_financial != NULL && last2_financial->EPS > 0)
-                    {
-                        FDM[i].fdm_stock = lastdividend->stock * FDM[i].EPS / last2_financial->EPS;
-                        FDM[i].fdm_cash = lastdividend->cash* FDM[i].EPS / last2_financial->EPS;
-                    }
-                }
-                else
-                {
-                    FDM[i].fdm_stock = lastdividend->stock * FDM[i].EPS / last_financial->EPS;
-                    FDM[i].fdm_cash = lastdividend->cash* FDM[i].EPS / last_financial->EPS;
-                }
-            } 
-            
-            if (curdividend != NULL)
-            {
-                FDM[i].stock = curdividend->stock;
-                FDM[i].cash = curdividend->cash;
-            }
-            curdividend = NULL;
-            lastdividend = NULL;
-            last_financial = NULL;
-            last2_financial = NULL;
-        }
+    int index = _stock_getindex(code);
+    int i = 0;
+    if (index == -1)
+        goto   FAILED;
 
-        int i_loop1 = 0;
-        for (i_loop1  = 0; FDM[i_loop1].year!=0; i_loop1++)
+    if (stock[index].earning_m== NULL)
+        goto FAILED;    
+
+    for (i = 0; stock[index].earning_m[i].year != 0; i++)
+    {
+        if (stock[index].earning_m[i].year == year && stock[index].earning_m[i].month == month )
         {
-            printf("REAL: [year: %d],[season: %d][EPS:%0.02f],[cash : %0.02f],[stock : %0.02f],FDM:[cash : %0.02f],[stock : %0.02f]\n",
-            FDM[i_loop1].year,
-            FDM[i_loop1].season,
-            FDM[i_loop1].EPS,
-            FDM[i_loop1].cash,
-            FDM[i_loop1].stock,
-            FDM[i_loop1].fdm_cash,
-            FDM[i_loop1].fdm_stock );        
+            return &stock[index].earning_m[i];
         }
-        bRet = true;
+    }
+
+FAILED:
+    return NULL;
+}
+
+
+static bool _DividendEstimation_financialdividendmethod(unsigned int code, unsigned int year, Estimation_dividend *Dividend)
+{
+    #define financialdividendmethod_printf 0
     
-    FAILED:    
-        return bRet;
+    bool bRet = false;
+    int index = _stock_getindex(code);
+    int i = 0;
+    if (index == -1)
+        goto   FAILED;
+
+    if (stock[index].dividend == NULL || stock[index].financial== NULL)
+        goto FAILED;
+
+    /*financial dividend method*/
+    Fnancial_dividend_method FDM[100];
+    memset(FDM,'\0',sizeof(Fnancial_dividend_method)*100);
+    
+    SK_FINANCIAL *last_financial = NULL;
+    SK_FINANCIAL *last2_financial = NULL;
+    SK_DIVIDEND *curdividend = NULL;
+    SK_DIVIDEND *lastdividend = NULL;
+    for (i = 0; stock[index].financial[i].Year != 0; i++)
+    {
+#if (financialdividendmethod_printf == 0)    
+        if (stock[index].financial[i].Year != year)
+            continue;
+#endif    
+        FDM[i].year=stock[index].financial[i].Year;
+        FDM[i].season=stock[index].financial[i].Season;
+        FDM[i].EPS =stock[index].financial[i].EPS;
+        curdividend = _GetDividendReport(code,stock[index].financial[i].Year);
+        lastdividend = _GetDividendReport(code,stock[index].financial[i].Year-1);            
+        last_financial = _GetFinancialReport(code,stock[index].financial[i].Year-1,stock[index].financial[i].Season);
+        if (last_financial != NULL && lastdividend != NULL && FDM[i].EPS > 0)
+        {
+            if (last_financial->EPS <= 0)
+            {
+                last2_financial = _GetFinancialReport(code,stock[index].financial[i].Year-2,stock[index].financial[i].Season);
+                if (last2_financial != NULL && last2_financial->EPS > 0)
+                {
+                    FDM[i].fdm_stock = lastdividend->stock * FDM[i].EPS / last2_financial->EPS;
+                    FDM[i].fdm_cash = lastdividend->cash* FDM[i].EPS / last2_financial->EPS;
+                }
+            }
+            else
+            {
+                FDM[i].fdm_stock = lastdividend->stock * FDM[i].EPS / last_financial->EPS;
+                FDM[i].fdm_cash = lastdividend->cash* FDM[i].EPS / last_financial->EPS;
+            }
+        } 
+        
+        if (curdividend != NULL)
+        {
+            FDM[i].stock = curdividend->stock;
+            FDM[i].cash = curdividend->cash;
+        }
+        curdividend = NULL;
+        lastdividend = NULL;
+        last_financial = NULL;
+        last2_financial = NULL;
+        Dividend->stock = FDM[i].fdm_stock;
+        Dividend->cash = FDM[i].fdm_cash;
+        bRet = true;
+    }
+
+#if (financialdividendmethod_printf == 1) 
+    int i_loop1 = 0;
+    for (i_loop1  = 0; FDM[i_loop1].year!=0; i_loop1++)
+    {
+        printf("REAL: [year: %d],[season: %d][EPS:%0.02f],[cash : %0.02f],[stock : %0.02f],FDM:[cash : %0.02f],[stock : %0.02f]\n",
+        FDM[i_loop1].year,
+        FDM[i_loop1].season,
+        FDM[i_loop1].EPS,
+        FDM[i_loop1].cash,
+        FDM[i_loop1].stock,
+        FDM[i_loop1].fdm_cash,
+        FDM[i_loop1].fdm_stock );        
+    }
+#endif    
+
+FAILED:    
+    return bRet;
 
 }
 
-static bool DividendEstimation_earningdividendmethod(unsigned int code)
+static bool _DividendEstimation_earningdividendmethod(unsigned int code, unsigned int year, Estimation_dividend *Dividend)
 {
     bool bRet = false;
     int index = _stock_getindex(code);
@@ -529,59 +584,54 @@ static bool DividendEstimation_earningdividendmethod(unsigned int code)
         goto FAILED;
 
     /*earning(month) dividend method*/
-    Earning_dividend_method EDM[3];
-    unsigned int temp_total = 0;
-    int j = 0;
+    SK_EARNING_MONTH *last_earning_m = NULL;
+    SK_EARNING_MONTH *last2_earning_m = NULL;
+    SK_DIVIDEND *lastdividend = NULL;    
+    Earning_dividend_method EDM[36]; // 3 years
+    memset(EDM,'\0',sizeof(Earning_dividend_method)*36);       
+    
     for (i = 0; stock[index].earning_m[i].year != 0; i++)
     {
-        EDM[j].year = stock[index].earning_m[i].year;
-        EDM[j].total += stock[index].earning_m[i].income;
-        if (j >= 1)
-            temp_total += stock[index].earning_m[i-12].income;
-        
-        if((i+1)%12 == 0)
-        {
-            temp_total = 0;
-            if (j >= 1)
-                EDM[j].percent = (float)EDM[j].total  / EDM[j-1].total; 
-            j++;
-        }
-    }
+        if (stock[index].earning_m[i].year != year)
+            continue;
 
-    /*last percent*/
-    EDM[j].percent = (float)EDM[j].total  / temp_total; 
-
-    for (i  = 0; stock[index].dividend[i].year!=0; i ++)
-    {
-        for (j = 0; j < 3; j++)
+        EDM[i].year = stock[index].earning_m[i].year;
+        EDM[i].month = stock[index].earning_m[i].month;
+        EDM[i].income = stock[index].earning_m[i].income;
+        lastdividend = _GetDividendReport(code,EDM[i].year -1);          
+        last_earning_m = _GetEarningmonthReport(code,EDM[i].year -1,EDM[i].month);
+        if (last_earning_m != NULL && lastdividend != NULL && EDM[i].income > 0)
         {
-            if (stock[index].dividend[i].year == EDM[j].year)
+            if (last_earning_m->income <= 0)
             {
-                EDM[j].cash = stock[index].dividend[i].cash;
-                EDM[j].stock = stock[index].dividend[i].stock;
+                last2_earning_m = _GetEarningmonthReport(code,EDM[i].year -2,stock[index].earning_m[i].month);
+                if (last2_earning_m  != NULL && last2_earning_m->income  > 0)
+                {
+                    EDM[i].percent  =  ((float)EDM[i].income / last2_earning_m->income) / (1 + lastdividend->stock /10);
+                    EDM[i].stock = lastdividend->stock * EDM[i].percent;
+                    EDM[i].cash  = lastdividend->cash* EDM[i].percent;
+                }
+            }
+            else
+            {
+                EDM[i].percent  =  ((float)EDM[i].income / last_earning_m->income) / (1 + lastdividend->stock /10);
+                EDM[i].stock = lastdividend->stock * EDM[i].percent;
+                EDM[i].cash  = lastdividend->cash* EDM[i].percent;
             }
         }
+        lastdividend = NULL;
+        last_earning_m = NULL;
+        last2_earning_m = NULL;
+        Dividend->cash = EDM[i].cash;
+        Dividend->stock = EDM[i].stock;
+        bRet = true;
     }
-
-    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[0].year, EDM[0].total, EDM[0].percent);
-    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[1].year,  EDM[1].total, EDM[1].percent);
-    //printf("[year : %d], [total : %d], [percent : %0.02f]\n", EDM[2].year,  EDM[2].total, EDM[2].percent);
-
-    printf("REAL: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[0].year,EDM[0].cash, EDM[0].stock);
-    printf("REAL: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[1].year,EDM[1].cash, EDM[1].stock);
     
-    EDM[1].percent  = EDM[1].percent / (1+EDM[0].stock/10);
-    printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[1].year, EDM[0].cash * EDM[1].percent , EDM[0].stock * EDM[1].percent);
-    EDM[2].percent  = EDM[2].percent / (1+EDM[1].stock/10);
-    printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",EDM[2].year, EDM[1].cash * EDM[2].percent , EDM[1].stock * EDM[2].percent);
-
-    bRet = true;
-
 FAILED:    
     return bRet;
 }
 
-static bool DividendEstimation_averagedividendmethod(unsigned int code)
+static bool _DividendEstimation_averagedividendmethod(unsigned int code, unsigned int year, Estimation_dividend *Dividend)
 {
     bool bRet = false;
     int index = _stock_getindex(code);
@@ -594,12 +644,11 @@ static bool DividendEstimation_averagedividendmethod(unsigned int code)
         goto FAILED;
     
     /*average dividend  method*/ 
-    /*bad method*/
     float dd_cash = 0, dd_stock = 0;
     int weight = 0, weight_total = 0;
     for (i  = 0; stock[index].dividend[i].year!=0; i ++)
     {
-        if (stock[index].dividend[i].year <= 98)
+        if (stock[index].dividend[i].year <  year - 5)
             continue;
         
         if (stock[index].dividend[i].year >= lastyear)
@@ -615,10 +664,10 @@ static bool DividendEstimation_averagedividendmethod(unsigned int code)
     {
         dd_cash = dd_cash/weight_total;
         dd_stock = dd_stock/weight_total;
+        Dividend->cash = dd_cash;
+        Dividend->stock = dd_stock;
+        bRet = true;
     }
-    printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",lastyear+1,dd_cash, dd_stock);
-    
-    bRet = true;
     
 FAILED:    
         return bRet;
@@ -627,10 +676,42 @@ FAILED:
 bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
 {
     bool bRet = false;
-    bRet = DividendEstimation_earningdividendmethod(code);
-    bRet = DividendEstimation_averagedividendmethod(code);
-    bRet = DividendEstimation_financialdividendmethod(code);
-   
+    Estimation_dividend Dividend = {0};
+    unsigned int year = 104;
+    unsigned int count = 0;
+    Estimation_dividend Dividend_final = {0};
+    
+    if (_DividendEstimation_averagedividendmethod(code,year,&Dividend))
+    {
+        printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        count++;
+        Dividend_final.cash += Dividend.cash;
+        Dividend_final.stock += Dividend.stock;
+    }
+    
+    if ( _DividendEstimation_earningdividendmethod(code,year,&Dividend))
+    {
+        printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        count++;
+        Dividend_final.cash += Dividend.cash;
+        Dividend_final.stock += Dividend.stock;
+    }
+    
+    if ( _DividendEstimation_financialdividendmethod(code,year,&Dividend))
+    {
+        printf("FDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        count++;
+        Dividend_final.cash += Dividend.cash;
+        Dividend_final.stock += Dividend.stock;
+    }
+
+    if (count > 0)
+    {
+        Dividend_final.cash /= count;
+        Dividend_final.stock /= count;
+        printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock);    
+    }
+
     return bRet;
 }
 

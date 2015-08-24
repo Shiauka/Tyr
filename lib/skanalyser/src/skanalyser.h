@@ -16,7 +16,8 @@ typedef enum
 typedef struct
 {
     unsigned int year;
-    unsigned int total;
+    unsigned int month;
+    unsigned int income;
     float percent;
     float stock;
     float cash;
@@ -34,6 +35,11 @@ typedef struct
     float fdm_cash;
 }Fnancial_dividend_method;
 
+typedef struct
+{
+    float stock;
+    float cash;
+}Estimation_dividend;
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
 bool SKApi_SKANALYSER_Help(void);
