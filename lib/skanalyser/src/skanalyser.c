@@ -235,7 +235,7 @@ static bool _SK_Fileread(const char *filename)
     /*read header*/
     if (fread((char *)&header, sizeof(SK_HEADER), 1, pfinput)!=0)
     {
-        printf("Read file [code : %d],[type : %d]\n",header.code,header.type);
+        //printf("Read file [code : %d],[type : %d]\n",header.code,header.type);
     }
     else
     {
@@ -673,17 +673,16 @@ FAILED:
         return bRet;
 }
 
-bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
+static bool SKApi_SKANALYSER_DividendEstimation(unsigned int code, unsigned int year, Estimation_dividend *retDividends)
 {
     bool bRet = false;
     Estimation_dividend Dividend = {0};
-    unsigned int year = 104;
     unsigned int count = 0;
     Estimation_dividend Dividend_final = {0};
 
     if (_DividendEstimation_averagedividendmethod(code,year,&Dividend))
     {
-        printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        //printf("ADM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
         count++;
         Dividend_final.cash += Dividend.cash;
         Dividend_final.stock += Dividend.stock;
@@ -691,7 +690,7 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
     
     if ( _DividendEstimation_earningdividendmethod(code,year,&Dividend))
     {
-        printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        //printf("EDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
         count++;
         Dividend_final.cash += Dividend.cash;
         Dividend_final.stock += Dividend.stock;
@@ -699,7 +698,7 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
     
     if ( _DividendEstimation_financialdividendmethod(code,year,&Dividend))
     {
-        printf("FDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
+        //printf("FDM: [year: %d],[cash : %0.02f], [stock : %0.02f]\n",year,Dividend.cash,Dividend.stock);
         count++;
         Dividend_final.cash += Dividend.cash;
         Dividend_final.stock += Dividend.stock;
@@ -709,8 +708,9 @@ bool SKApi_SKANALYSER_DividendEstimation(unsigned int code)
     {
         Dividend_final.cash /= count;
         Dividend_final.stock /= count;
-        printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock);    
+        //printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock);    
     }
+    memcpy(retDividends, &Dividend_final, sizeof(Estimation_dividend));
     
     return bRet;
 }
@@ -772,7 +772,9 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             printf("fread failed : %s\n",filename);
         }
 
-        SKApi_SKANALYSER_DividendEstimation(code);
+        Estimation_dividend Dividend = {0};
+        SKApi_SKANALYSER_DividendEstimation(code, 104,&Dividend);
+        printf("[code : %d],[cash : %0.02f],[stock : %0.02f]\n",code,Dividend.cash,Dividend.stock);  
         code = 0;
     }
 
