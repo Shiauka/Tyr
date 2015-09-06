@@ -9,6 +9,31 @@
 #define STOCK_NUM 1000
 static SK_STOCK stock[STOCK_NUM];
 
+
+static void *SK_Realloc(void *ptr, size_t size)
+{
+    void *Ret = NULL;
+    Ret = realloc(ptr,size);
+    if (ptr == NULL && Ret != NULL)
+        memset(Ret,'\0',size);
+    return Ret;
+}
+
+static void *SK_Malloc(size_t size)
+{
+    void *Ret = NULL;
+    Ret = malloc(size);
+    if (Ret != NULL)
+        memset(Ret,'\0',size);
+    return Ret;
+}
+
+static void SK_Free(void *ptr)
+{
+    if (ptr != NULL)
+        free(ptr);
+}
+
 static int _stock_getindex(unsigned int code)
 {
     int i = 0;
@@ -673,6 +698,171 @@ FAILED:
         return bRet;
 }
 
+static void _Dividendratio_sort(int count, float *ratio)
+{
+    if (count <=0 || ratio == NULL )
+            return;
+    
+    int i_loop = 0;
+    int j_loop = 0;
+    float temp = 0;
+    for (i_loop = 0; i_loop < count; i_loop++)
+    {
+        for (j_loop = i_loop+1; j_loop < count; j_loop++)
+        {
+            if (ratio[i_loop] >ratio[j_loop])
+            {
+                temp = ratio[i_loop];
+                ratio[i_loop] = ratio[j_loop];
+                ratio[j_loop] = temp;
+            }
+        }
+    }
+}
+
+static float _Dividendratio_sum(int count, float *ratio)
+{
+    if (count <=0 || ratio == NULL )
+            return 0;
+    
+    int loop = 0;
+    float sum = 0;
+    for (loop = 0; loop < count; loop++)
+    {
+        sum += ratio[loop];
+    }
+    return sum;
+}
+
+static float _Dividendratio_average(int count, float *ratio)
+{
+    if (count <=0 || ratio == NULL )
+            return 0;
+    
+    float average = 0;
+    average = _Dividendratio_sum(count, ratio)/count;
+    
+    return average;
+}
+
+static float _Dividendratio_average_range(int count, float *ratio, float low, float up)
+{
+    if (count <=0 || ratio == NULL )
+            return 0;
+    
+    float average = 0;
+    int loop = 0;
+    float sum = 0;
+    int upper = count * up;
+    int lower = count * low;
+    int loopcount = 0;
+    for (loop = lower; loop < upper; loop++)
+    {
+        sum += ratio[loop];
+        loopcount++;
+    }
+    average = sum /loopcount;
+    return average;
+}
+
+
+static bool _PriceEstimation_Dividendratio(unsigned int code, Estimation_dividend_ratio* EDR)
+{
+    bool bRet = false;
+    int index = _stock_getindex(code);
+    SK_DIVIDEND *curdividend = NULL;
+    int i = 0;
+    float temp_ratio = 0.0;
+    float temp_stock = 0.0;
+    int ratiosize = 500;
+    float *ratio = NULL;
+    int count = 0;
+    if (index == -1 || EDR == NULL)
+        goto   FAILED;
+
+    if (stock[index].dividend == NULL || stock[index].price == NULL)
+        goto FAILED;
+
+    ratio = SK_Malloc(sizeof(float)*ratiosize);
+    if (ratio ==NULL)
+        goto FAILED;
+
+    //caculator dividend ratio per day
+    for (i  = 0; stock[index].price[i].year !=0; i ++)
+    {
+        //if (stock[index].price[i].month != month)
+         //   continue;
+        
+        curdividend = _GetDividendReport(code,stock[index].price[i].year);
+        if (curdividend !=NULL && (stock[index].price[i].price_end - curdividend->cash >= 0 ))
+        {
+            temp_stock = (stock[index].price[i].price_end - curdividend->cash)  / (1+curdividend->stock / 10) * curdividend->stock / 10;
+            temp_ratio = (curdividend->cash + temp_stock) / stock[index].price[i].price_end;
+            ratio[count] = temp_ratio;
+            count++;
+            if (count >= ratiosize)
+            {
+                ratiosize += 100;
+                ratio = SK_Realloc(ratio, sizeof(float)*ratiosize);
+                if (ratio ==NULL)
+                    goto FAILED;
+            }
+        }
+        curdividend = NULL;
+    }
+    _Dividendratio_sort(count,ratio);
+
+    float temp = 0;
+    temp = _Dividendratio_average(count,ratio);
+    temp = _Dividendratio_average_range(count,ratio,0.40,0.60);
+    EDR->middle = temp;
+    temp = _Dividendratio_average_range(count,ratio,0.15,0.35);
+    EDR->low = temp;
+    temp = _Dividendratio_average_range(count,ratio,0.65,0.85);
+    EDR->high = temp;
+
+    bRet = true;
+    
+FAILED: 
+    SK_Free(ratio);
+    return bRet;
+}
+
+static float _PriceEstimation_ratio2price(float ratio, Estimation_dividend *dividend)
+{
+    if (dividend == NULL)
+        return -1;
+
+    float Price = 0;
+    float Z = (dividend->stock / 10)/(1+(dividend->stock / 10));
+    
+    if (Z >= ratio)
+        return 0; 
+
+    Price = ((1-Z)*dividend->cash) /(ratio - Z);
+    return Price;
+}
+
+static bool SKApi_SKANALYSER_PriceEstimation(unsigned int code,Estimation_dividend *dividend)
+{
+    bool bRet = false;
+    Estimation_dividend_ratio Dividend_ratio = {0};
+     
+    if (!_PriceEstimation_Dividendratio(code,&Dividend_ratio))
+    {
+        goto FAILED;
+    }
+
+    printf("low: %0.04f,%0.04f \n",Dividend_ratio.low, _PriceEstimation_ratio2price(Dividend_ratio.low,dividend));
+    printf("middle: %0.04f,%0.04f \n",Dividend_ratio.middle, _PriceEstimation_ratio2price(Dividend_ratio.middle,dividend));
+    printf("high: %0.04f,%0.04f \n",Dividend_ratio.high, _PriceEstimation_ratio2price(Dividend_ratio.high,dividend));
+    bRet = true;
+
+FAILED:
+    
+    return bRet;
+}
+
 static bool SKApi_SKANALYSER_DividendEstimation(unsigned int code, unsigned int year, Estimation_dividend *retDividends)
 {
     bool bRet = false;
@@ -708,7 +898,8 @@ static bool SKApi_SKANALYSER_DividendEstimation(unsigned int code, unsigned int 
     {
         Dividend_final.cash /= count;
         Dividend_final.stock /= count;
-        //printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock);    
+        //printf("AVG: [year: %d],[cash : %0.02f],[stock : %0.02f]\n",year,Dividend_final.cash,Dividend_final.stock); 
+        bRet = true;
     }
     memcpy(retDividends, &Dividend_final, sizeof(Estimation_dividend));
     
@@ -775,6 +966,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         Estimation_dividend Dividend = {0};
         SKApi_SKANALYSER_DividendEstimation(code, 104,&Dividend);
         printf("[code : %d],[cash : %0.02f],[stock : %0.02f]\n",code,Dividend.cash,Dividend.stock);  
+        SKApi_SKANALYSER_PriceEstimation(code, &Dividend);
         code = 0;
     }
 

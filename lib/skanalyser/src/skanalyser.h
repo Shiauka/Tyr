@@ -41,6 +41,14 @@ typedef struct
     float cash;
 }Estimation_dividend;
 
+typedef struct
+{
+    float middle;
+    float high;
+    float low;
+}Estimation_dividend_ratio;
+
+
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
 bool SKApi_SKANALYSER_Help(void);
 bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path);
