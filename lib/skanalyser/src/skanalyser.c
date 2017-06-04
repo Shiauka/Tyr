@@ -2,7 +2,6 @@
 #include "SKcommon.h"
 #include "SKdata.h"
 #include "skanalyser.h"
-#include "string.h"
 
 
 #define FREE_MEM(x)     do{if (x != NULL) {free(x);}}while(0);       

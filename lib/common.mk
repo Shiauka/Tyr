@@ -1,1 +1,2 @@
+SRC_PATH=$(LIB_PATH)/SKcommon
 INC_PATH=$(LIB_PATH)/SKcommon

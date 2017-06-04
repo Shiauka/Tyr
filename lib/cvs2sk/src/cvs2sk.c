@@ -6,6 +6,9 @@
 
 
 #define MAX_STRBUFFER_SIZE 128
+#define LINE_LEN 256
+#define FINANCIAL_NEW_NUM 1500
+
 static char strbuf[MAX_STRBUFFER_SIZE];
 
 char *Skip_specific_character(const char* input, unsigned int len, char specific)
@@ -482,294 +485,245 @@ FAILED:
     
 }
 
-bool SKApi_CVS2SK_Price(const int Code, const char *Inputfilelist, const char *Outputfile)
+static bool _Price_Output(SK_PRICE skprice, const char* OutputPath)
 {
     bool bRet = false;
-    FILE *pfinputfilelist = NULL;
-    FILE *pfinputffile = NULL;
-    FILE *pfoutputfile = NULL;
-    char line[MAX_STRBUFFER_SIZE];
-    int linelen = 0;
-    char dirpath[MAX_STRBUFFER_SIZE];
-    char filepath[MAX_STRBUFFER_SIZE*2];
-    char *pstr = NULL, *pstr2 = NULL;
-    int listcount  = 0;
-    bool bfile = false;
-    char tempstr[32];
-    int pstrlen = 0;
-    bool bcat = false;
-    bool bcatdone = false;
-    int index = 0;
-    SK_PRICE *price = NULL;
-    SK_HEADER *header = NULL;
-    int pricecount = 0;
-    int allocsize = 0;
-    char temp_8[8];
-    short ymd=0;
-    
+    SK_HEADER header;
+    char filename[LINE_LEN+1];
+    SKData_ErrMSG msg = SKData_ErrMSG_Pass;
+
     //check input value
-    if (Inputfilelist == NULL || Outputfile == NULL)
+    if (OutputPath == NULL)
     {
         printf("invalid input value\n");
         goto FAILED;
     }
 
-    //open input list file /output file
-    pfinputfilelist = fopen(Inputfilelist,"r");
-    if (pfinputfilelist == NULL)
+    sprintf(filename,"%s/%d.price",OutputPath,skprice.code);
+
+    header.code =  skprice.code;
+    header.type = SK_DATA_TYPE_PRICE;
+    header.datacount = 1;
+    header.unidatasize = sizeof(SK_PRICE);
+    header.datalength = header.unidatasize * header.datacount;
+
+    msg = SKData_DataInsert(filename, &header, &skprice);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
     {
-        printf("open file error: %s\n",Inputfilelist);
         goto FAILED;
     }
+    //printf("%d, %s, %f, %f,%f\n",skprice.code, skprice.name, skprice.price_end, skprice.price_start, skprice.PEratio);
+
+    bRet = true;
+
+FAILED:
     
-    pfoutputfile = fopen(Outputfile,"w");
-    if (pfoutputfile == NULL)
+    return bRet;
+}
+
+static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
+{
+
+    //Local define 
+    char keyword1[20] = {0xe5, 0xa4,0xa7,0xe7,0x9b,0xa4,0xe7,0xb5,0xb1,0xe8,0xa8,0x88,
+        0xe8,0xb3,0x87,0xe8,0xa8,0x8a ,'\0'}; // 大  盤  統  計  資  訊
+    char keyword2[20] = {0x22, 0xe8,0xad,0x89,0xe5,0x88,0xb8,0xe4,0xbb,0xa3,0xe8,0x99,
+        0x9f, 0x22, '\0'}; // "證   卷   代  號"  " 
+
+    char s_year[4] = {0xe5,0xb9,0xb4,'\0'}; // 年
+    char s_month[4] = {0xe6,0x9c,0x88,'\0'};// 月
+    char s_day[4] = {0xe6,0x97,0xa5,'\0'};// 日
+
+
+    bool bRet = false;
+    FILE *finput = NULL;
+    char line[LINE_LEN+1];
+    char *pstr = NULL;
+    bool bParsing = false;
+    bool bGetdata = false;
+    SK_PRICE skprice = {0};
+    int year,month,day;
+    int index = 0;
+    
+    //check input value
+    if (Inputfile == NULL || OutputPath == NULL)
     {
-        printf("open file error: %s\n",Outputfile);
+        printf("invalid input value\n");
         goto FAILED;
     }
-    
-    //open each file and load data  to structure SK_PRICE
-    while (fgets (line, MAX_STRBUFFER_SIZE, pfinputfilelist)!=NULL)
+
+    finput = fopen(Inputfile, "r");
+    if (finput == NULL)
     {
-        listcount++;
-        bfile = false;
-        linelen = strlen(line);
-        
-        if (line[linelen-2] == ':')
+        printf("Can't open file :%s \n", Inputfile);
+        goto FAILED;
+    }
+
+    while (fgets (line, LINE_LEN, finput)!=NULL)
+    {
+        if (bParsing)
         {
-            //get dirpath from listfile
+            if (!(line[0] == 0x22 || line[0]  == 0x3D)) // " and =
             {
-                pstr = strtok(line,":");
-                if (strlen(pstr)> MAX_STRBUFFER_SIZE-1)
+                break;
+            }
+            else
+            {
+                memset(&skprice, '\0', sizeof(SK_PRICE));
+                index = 0;
+
+                //printf("%s",line);
+                pstr = strtok(line,"\"= \t\n,+-");
+                
+                while (pstr != NULL)
                 {
-                    printf("filelist path too long\n");
-                    goto FAILED;
+                    switch (index)
+                    {
+                        case 0:
+                            skprice.year = year;
+                            skprice.month = month;
+                            skprice.day = day;
+                            skprice.code = atoi(pstr);
+                            break;
+                            
+                        case 1:
+                            sprintf(skprice.name,"%s",pstr);
+                            break;
+                            
+                        case 2:
+                            skprice.strikestock = atoi(pstr);
+                            break;
+                            
+                        case 3:
+                            skprice.strikenum = atoi(pstr);
+                            break;
+                            
+                        case 4:
+                            skprice.turnover = atoi(pstr);
+                            break;
+                            
+                        case 5:
+                            skprice.price_start= atof(pstr);
+                            break;
+                            
+                        case 6:
+                            skprice.price_max= atof(pstr);
+                            break;
+                            
+                        case 7:
+                            skprice.price_min= atof(pstr);
+                            break;
+                            
+                        case 8:
+                            skprice.price_end = atof(pstr);
+                            break;
+                            
+                        case 9:
+                            skprice.price_diff = atof(pstr);
+                            break;
+                            
+                        case 14:
+                            skprice.PEratio = atof(pstr);
+                            break;
+                            
+                        default:
+                            break;
+                    }
+                
+                    pstr = strtok(NULL,"\"= \t\n,+-");
+                    index++;
                 }
-                memset(dirpath,'\0',MAX_STRBUFFER_SIZE);
-                strncpy(dirpath,pstr,strlen(pstr));
-                strcat(dirpath,"/");
+                //printf("%d, %s, %f, %f\n",skprice.code, skprice.name, skprice.price_end, skprice.PEratio);
+                _Price_Output(skprice, OutputPath);
             }
         }
-        else if (line[linelen-2] != ':' && line[linelen-1] == '\n')
+        else if (bGetdata)
         {
-            //get filepath from listfile
-            pstr = strtok(line,"\n");
-            memset(filepath,'\0',MAX_STRBUFFER_SIZE*2);
-            strncpy(filepath,dirpath,strlen(dirpath));   
-            strcat(filepath,pstr);
-            bfile = true;
+            pstr = strstr (line,keyword2);
+            if (pstr !=NULL)
+            {
+                bParsing = true;
+            }
         }
         else
         {
-            //invaild format
-            printf("invaild filelist format %s : %d\n", Inputfilelist,listcount);
-            goto FAILED;
-        }
-
-        if (bfile)
-        {
-            //open file
-            pfinputffile = fopen(filepath,"r");
-            if (pfinputffile == NULL)
+            pstr = strstr (line,keyword1);
+            if (pstr !=NULL)
             {
-                printf("open file error: %s\n",filepath);
-                goto FAILED;
+                pstr = strstr (line,s_year);
+                strncpy (pstr,"   ",3);
+                pstr = strstr (line,s_month);
+                strncpy (pstr,"   ",3);
+                pstr = strstr (line,s_day);
+                strncpy (pstr,"   ",3);
+                sscanf(line,"%d  %d  %d  ",&year, &month,&day);
+
+                //printf("%d-%d-%d\n",year, month, day);            
+                bGetdata = true;
             }
-            
-            while (fgets (line, MAX_STRBUFFER_SIZE, pfinputffile)!=NULL)
-            {
-                if (strncmp(line," ",1))
-                {
-                    continue;
-                }
-
-                if (pricecount >= allocsize)
-                {
-                    allocsize = pricecount +100;
-                    price = realloc(price, allocsize*sizeof(SK_PRICE));
-               
-                    if (price == NULL)
-                    {
-                        printf("price realloc fail \n");
-                        goto FAILED;
-                    }
-                    else
-                    {
-                        //printf("realloc PRICE buffer to %d x %ld  \n",allocsize,sizeof(SK_PRICE));
-                    }
-                }
-                
-                // the following are parse price specific format
-                bcat = false;
-                index = 0;
-                pstr = strtok(line,", \n\t");
-                while (pstr !=NULL)
-                {
-                    pstrlen = strlen(pstr);
-
-                    if (bcat)
-                    {
-                        strcat(tempstr,pstr);
-                    }
-                    
-                    if (pstr[0] == '"')
-                    {
-                        bcat = true;
-                        memset(tempstr, '\0', 32);
-                        strncpy(tempstr, pstr, pstrlen);
-                    }
-                    else if (pstr[pstrlen-1] == '"')
-                    {
-                        bcat = false;
-                        bcatdone = true;
-                    }
-
-
-                    if (bcat == false)
-                    {
-                        if (!bcatdone)
-                        {
-                            memset(tempstr, '\0', 32);
-                            strncpy(tempstr, pstr, pstrlen);
-                        }
-                        else
-                        {
-                            bcatdone = false;
-                        }
-
-                        //printf("%s(%d),",Skip_specific_character(tempstr,  strlen(tempstr),'"'),index);
-
-                        switch (index)
-                        {
-                            case 0 :
-                                pstr = tempstr;
-                                ymd = 0;
-                                
-                                for (pstr2 = tempstr ; *pstr2 != '\0'; pstr2++)
-                                {
-                                    if (*pstr2 == '/')
-                                    {
-                                        memset(temp_8,'\0',8);
-                                        strncpy(temp_8,pstr,pstr2-pstr);
-                                        pstr = pstr2+1;
-
-                                        if (ymd == 0)
-                                        {   
-                                            price[pricecount ].year = atoi(temp_8);
-                                            ymd++;
-                                        }
-                                        else
-                                        {
-                                            price[pricecount ].month = atoi(temp_8);
-                                            price[pricecount ].day = atoi(pstr);
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                break;
-
-                            case 1:
-                                price[pricecount ].strikestock = atoi(Skip_specific_character(tempstr,  strlen(tempstr),'"'));
-                                break;
-
-                            case 2:
-                                price[pricecount ].turnover = atol(Skip_specific_character(tempstr,  strlen(tempstr),'\"'));
-                                break;
-
-                            case 3:
-                                price[pricecount ].price_start = atof(pstr);
-                                break;
-
-                            case 4:
-                                price[pricecount ].price_max = atof(tempstr);
-                                break;
-
-                            case 5:
-                                price[pricecount ].price_min = atof(tempstr);
-                                break;
-
-                            case 6:
-                                price[pricecount ].price_end = atof(tempstr);
-                                break;
-                                    
-                            case 7:
-                                price[pricecount ].price_diff = atof(tempstr);
-                                break;
-
-                            case 8:
-                                price[pricecount ].strikenum = atoi(Skip_specific_character(tempstr,  strlen(tempstr),'"'));
-                                break;
-                                
-                            default:
-                                break;
-                        }
-                        index++;
-                    }
-                    
-                    pstr = strtok(NULL,", \n\t");
-                }
-                pricecount++;
-                //printf("\n");
-            }
-            
-            fclose(pfinputffile);
-            pfinputffile = NULL;
-        }
+        }     
+        pstr = NULL;
     }
-
-
-#if 0
-    for (index = 0; index < pricecount; index++)
-    {
-        printf("%d,%d,%d,%d,%ld,%f,%f,%f,%f,%f,%d\n", price[index ].year, 
-            price[index].month, price[index].day, price[index].strikestock, 
-            price[index].turnover, price[index].price_start, 
-            price[index].price_max, price[index].price_min, 
-            price[index].price_end, 
-            price[index].price_diff,price[index].strikenum);
-
-    }
-    printf("count = %d\n",pricecount);
-#endif
-
-    //dump SK_HEADER and SK_PRICE to output file
-    header = malloc(sizeof(SK_HEADER));
-
-    header->code = Code;
-    header->type = SK_DATA_TYPE_PRICE;
-    header->datacount = pricecount;
-    header->unidatasize = sizeof(SK_PRICE);
-    header->datalength = pricecount * sizeof(SK_PRICE);
-
-    pstr = (char *)header;
-    for (index = 0; index < sizeof(SK_HEADER); index++)
-    {
-        fprintf(pfoutputfile,"%c", pstr[index]);
-    }
-
-    pstr = (char *)price;
-    for (index = 0; index < header->datalength; index++)
-    {
-        fprintf(pfoutputfile,"%c", pstr[index]);
-    }
-
+    
     bRet = true;
     
+    FAILED:
+    if (finput !=NULL) 
+        fclose(finput); 
+
+    return bRet;
+}
+
+bool SKApi_CVS2SK_Price(const char *Inputfilelist, const char *OutputPath)
+{
+    bool bRet = false;
+    FILE *finputFileList = NULL;
+    char line[LINE_LEN+1];
+    char inputlistpath[LINE_LEN+1];
+    char inputfile[LINE_LEN+1];
+    char *pstr = NULL;
+
+    //check input value
+    if (Inputfilelist == NULL || OutputPath == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //open filelist
+    finputFileList = fopen(Inputfilelist,"r");
+    if (finputFileList == NULL)
+    {
+        printf("Can't open file :%s \n", Inputfilelist);
+        goto FAILED;
+    }
+
+    //read filelist
+    if (fgets (line, LINE_LEN, finputFileList)!=NULL)
+    {
+        pstr = strtok(line," \t\n,\":");
+        sprintf(inputlistpath,"%s/",pstr);
+    }
+    
+    while (fgets (line, LINE_LEN, finputFileList)!=NULL)
+    {
+        pstr = strtok(line," \t\n,\":");
+        if (pstr != NULL)
+        {
+            sprintf(inputfile,"%s%s",inputlistpath,line);
+            printf("%s\n",inputfile);
+            _Price_Parsing(inputfile, OutputPath);
+        }
+        pstr = NULL;
+    }
+    bRet = true;
 FAILED:
-    if (pfinputfilelist !=NULL) fclose(pfinputfilelist); 
-    if (pfinputffile !=NULL) fclose(pfinputffile);
-    if (pfoutputfile !=NULL) fclose(pfoutputfile);
-    if (price !=NULL) free(price);
-    if (header !=NULL) free(header);
-        
+    if (finputFileList !=NULL) fclose(finputFileList); 
+
+    
     return bRet;
 
 }
-
-#define LINE_LEN 256
-#define FINANCIAL_NEW_NUM 1500
 
 static void _Item2Financial(int item, char *str, SK_FINANCIAL* financial)
 {
@@ -1205,7 +1159,7 @@ bool SKApi_CVS2SK_Help(void)
     printf("\ncvs2sk [Command] [Code] [CVS file/CVS files List] [SK file] [SK file 2]\n\n");
     printf("=============CVS2SK Commnd List==================\n");
     printf("[0] trans price.cvs to sk file\n");
-    printf("     cvs2sk 0 price.filelist price.sk\n");
+    printf("     cvs2sk 0 price.filelist price.outputpath\n");
     printf("[1] trans dividend.cvs to sk file\n");
     printf("     cvs2sk 1 dividend.cvs dividend.sk\n");
     printf("[2] trans earning.cvs to sk file\n");
@@ -1213,7 +1167,6 @@ bool SKApi_CVS2SK_Help(void)
     printf("[3] continue ...\n");
     printf("==============================================\n");
     return true;
-    
 }
 
 

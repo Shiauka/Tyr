@@ -18,7 +18,7 @@ PROJECT_PATH=$(LIB_PATH)/$(PROJECT)
 # PROJECT SETTING
 #================================
 OBJ_PATH=$(PROJECT_PATH)/obj
-SRC_PATH=$(PROJECT_PATH)/src
+SRC_PATH+=$(PROJECT_PATH)/src
 INC_PATH+=$(PROJECT_PATH)/src
 
 
@@ -32,7 +32,7 @@ OBJ_C=$(foreach file, $(OBJ_C_0), $(OBJ_PATH)/$(file))
 # COMPILE SETTING
 #================================
 CC=gcc
-CFLAGS=-g -O3 -Wall -Werror
+CFLAGS=-g -O3 -Wall
 INCLUDE=$(foreach dir, $(INC_PATH), -I $(dir))
 CC_OPTS=$(INCLUDE) $(CFLAGS)
 
