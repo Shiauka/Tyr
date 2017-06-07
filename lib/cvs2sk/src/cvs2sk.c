@@ -9,14 +9,14 @@
 #define LINE_LEN 256
 #define FINANCIAL_NEW_NUM 1500
 
-static char strbuf[MAX_STRBUFFER_SIZE];
+static char strbuf[LINE_LEN];
 
 char *Skip_specific_character(const char* input, unsigned int len, char specific)
 {
     unsigned int index = 0;    
     unsigned int count = 0;
 
-    memset(strbuf,'\0',MAX_STRBUFFER_SIZE);
+    memset(strbuf,'\0',LINE_LEN);
 
     for (index = 0; index < len; index++)
     {
@@ -525,10 +525,10 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
 {
 
     //Local define 
-    char keyword1[20] = {0xe5, 0xa4,0xa7,0xe7,0x9b,0xa4,0xe7,0xb5,0xb1,0xe8,0xa8,0x88,
-        0xe8,0xb3,0x87,0xe8,0xa8,0x8a ,'\0'}; // ¤j  ½L  ²Î  ­p  ¸ê  °T
+    char keyword1[20] = {0xE6,0xAF,0x8F,0xE6,0x97,0xA5,0xE6,0x94,0xB6,0xE7,0x9B,0xA4,'\0'}; // // ¨C   ¤é    ¦¬   ½L
     char keyword2[20] = {0x22, 0xe8,0xad,0x89,0xe5,0x88,0xb8,0xe4,0xbb,0xa3,0xe8,0x99,
         0x9f, 0x22, '\0'}; // "ÃÒ   ¨÷   ¥N  ¸¹"  " 
+    char keyword3[20] = {0x22,0xE5,0x82,0x99,0xE8,0xA8,0xBB,0x3A,0x22,'\0'}; // " ³Æµ    µù  
 
     char s_year[4] = {0xe5,0xb9,0xb4,'\0'}; // ¦~
     char s_month[4] = {0xe6,0x9c,0x88,'\0'};// ¤ë
@@ -561,9 +561,18 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
 
     while (fgets (line, LINE_LEN, finput)!=NULL)
     {
+#if 0
+        printf("%s",line);
+        for (index = 0; index < 30; index++)
+        {
+            printf("0x%02X,",(unsigned char)line[index]);
+        }
+        printf("\n");
+#endif
+    
         if (bParsing)
         {
-            if (!(line[0] == 0x22 || line[0]  == 0x3D)) // " and =
+            if (!(line[0] == 0x22 || line[0]  == 0x3D)  || strstr (line,keyword3)  != NULL) // " and =
             {
                 break;
             }
@@ -573,7 +582,8 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
                 index = 0;
 
                 //printf("%s",line);
-                pstr = strtok(line,"\"= \t\n,+-");
+                pstr = Skip_specific_character(line, LINE_LEN, ',');
+                pstr = strtok(pstr,"\"= \t\n+-");
                 
                 while (pstr != NULL)
                 {
@@ -650,12 +660,15 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
             pstr = strstr (line,keyword1);
             if (pstr !=NULL)
             {
+                pstr = Skip_specific_character(line, LINE_LEN, '"');
+                memcpy(line, pstr, LINE_LEN);
                 pstr = strstr (line,s_year);
                 strncpy (pstr,"   ",3);
                 pstr = strstr (line,s_month);
                 strncpy (pstr,"   ",3);
                 pstr = strstr (line,s_day);
                 strncpy (pstr,"   ",3);
+                
                 sscanf(line,"%d  %d  %d  ",&year, &month,&day);
 
                 //printf("%d-%d-%d\n",year, month, day);            
@@ -704,7 +717,7 @@ bool SKApi_CVS2SK_Price(const char *Inputfilelist, const char *OutputPath)
         pstr = strtok(line," \t\n,\":");
         sprintf(inputlistpath,"%s/",pstr);
     }
-    
+
     while (fgets (line, LINE_LEN, finputFileList)!=NULL)
     {
         pstr = strtok(line," \t\n,\":");
