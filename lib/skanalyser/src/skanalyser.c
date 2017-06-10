@@ -156,7 +156,7 @@ static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
     memset(p,'\0',size);
     if (fread(p, header.unidatasize, header.datacount, pfinputfile) == 0)
         return false;
-
+    
     /*assinged data point*/
     switch (header.type)
     {

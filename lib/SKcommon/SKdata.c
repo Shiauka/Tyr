@@ -96,6 +96,92 @@ static bool _SKData_DataSort_Price(SK_PRICE *orgData,  SK_HEADER *orgHeader)
     return true;
 }
 
+static bool _SKData_DataInsert_EarningSeason(SK_EARNING_SEASON *orgData,  SK_HEADER *orgHeader, SK_EARNING_SEASON *newData,  SK_HEADER *newHeader)
+{
+    int index_new = 0, index_org = 0;
+    
+    //check data
+    for (index_new = 0; index_new < newHeader->datacount; index_new++)
+    {
+        for (index_org = 0; index_org < orgHeader->datacount; index_org++)
+        {
+            if ((orgData[index_org].year== newData[index_new].year) && 
+                (orgData[index_org].season== newData[index_new].season))
+            {
+                break;
+            }
+        }
+
+        //add data
+        if (index_org >= orgHeader->datacount)
+        {
+            orgHeader->datalength += orgHeader->unidatasize;
+            orgHeader->datacount++;
+            //SK_Realloc((void *)orgData, orgHeader->datalength + orgHeader->unidatasize);
+            memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);
+        }
+    }
+    
+    return true;
+}
+
+static bool _SKData_DataInsert_EarningMonth(SK_EARNING_MONTH *orgData,  SK_HEADER *orgHeader, SK_EARNING_MONTH *newData,  SK_HEADER *newHeader)
+{
+    int index_new = 0, index_org = 0;
+    
+    //check data
+    for (index_new = 0; index_new < newHeader->datacount; index_new++)
+    {
+        for (index_org = 0; index_org < orgHeader->datacount; index_org++)
+        {
+            if ((orgData[index_org].year== newData[index_new].year) && 
+                (orgData[index_org].month== newData[index_new].month))
+            {
+                break;
+            }
+        }
+
+        //add data
+        if (index_org >= orgHeader->datacount)
+        {
+            orgHeader->datalength += orgHeader->unidatasize;
+            orgHeader->datacount++;
+            //SK_Realloc((void *)orgData, orgHeader->datalength + orgHeader->unidatasize);
+            memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);
+        }
+    }
+    
+    return true;
+}
+
+static bool _SKData_DataInsert_Dividend(SK_DIVIDEND *orgData,  SK_HEADER *orgHeader, SK_DIVIDEND *newData,  SK_HEADER *newHeader)
+{
+    int index_new = 0, index_org = 0;
+
+    //check data
+    for (index_new = 0; index_new < newHeader->datacount; index_new++)
+    {
+        for (index_org = 0; index_org < orgHeader->datacount; index_org++)
+        {
+            if (orgData[index_org].year== newData[index_new].year)
+            {
+                break;
+            }
+        }
+
+        //add data
+        if (index_org >= orgHeader->datacount)
+        {
+            orgHeader->datalength += orgHeader->unidatasize;
+            orgHeader->datacount++;
+            //SK_Realloc((void *)orgData, orgHeader->datalength + orgHeader->unidatasize);
+            memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);
+        }
+    }
+    
+    return true;
+}
+
 static bool _SKData_DataInsert_Price(SK_PRICE *orgData,  SK_HEADER *orgHeader, SK_PRICE *newData,  SK_HEADER *newHeader)
 {
 /*
@@ -286,8 +372,29 @@ SKData_ErrMSG SKData_DataInsert(const char *filename, SK_HEADER *insertheader, v
     else
     {
         /*old file*/
-        _SKData_DataInsert_Price((SK_PRICE *)skdata, &fheader, (SK_PRICE *)insertData, insertheader);
+        switch (fheader.type)
+        {
+            case SK_DATA_TYPE_PRICE:
+                _SKData_DataInsert_Price((SK_PRICE *)skdata, &fheader, (SK_PRICE *)insertData, insertheader);
+                break;
+                
+            case SK_DATA_TYPE_DIVIDEND:
+                _SKData_DataInsert_Dividend((SK_DIVIDEND *)skdata, &fheader, (SK_DIVIDEND *)insertData, insertheader);
+                break;
 
+            case SK_DATA_TYPE_EARNING_MONTH:
+                _SKData_DataInsert_EarningMonth((SK_EARNING_MONTH *)skdata, &fheader, (SK_EARNING_MONTH *)insertData, insertheader);
+                break;
+                
+            case SK_DATA_TYPE_EARNING_SEASON:
+                _SKData_DataInsert_EarningSeason((SK_EARNING_SEASON *)skdata, &fheader, (SK_EARNING_SEASON *)insertData, insertheader);
+                break;
+                
+            default:
+                Retmsg = SKData_ErrMSG_InvalidType;
+                goto FAILED;
+                break;
+        }
         pstr = (char *)&fheader;
         for (index = 0; index < sizeof(SK_HEADER); index++)
         {

@@ -81,19 +81,68 @@ void Sort_dividend( SK_DIVIDEND *dividend, int num)
     }
 }
 
-bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Outputfile)
+static bool _Dividend_Output(SK_DIVIDEND *dividend, int datacount, const char* Outputfile)
+{
+    bool bRet = false;
+    SK_HEADER header = {0};
+    SKData_ErrMSG msg = SKData_ErrMSG_Pass;
+    
+    //check input value
+    if (dividend == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //dump SK_HEADER and SK_DIVIDEND to output file
+    
+    //memset(&header,'\0',sizeof(SK_HEADER));
+    
+    header.code = dividend[0].code;
+    header.type = SK_DATA_TYPE_DIVIDEND;
+    header.datacount = datacount;
+    header.unidatasize = sizeof(SK_DIVIDEND);
+    header.datalength = header.datacount * sizeof(SK_DIVIDEND);
+
+    msg = SKData_DataInsert(Outputfile, &header, dividend);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
+    {
+        goto FAILED;
+    }
+
+/*
+    printf("HEADER:\n");
+    printf("Code = %d\n",header.code);
+    printf("type = %d\n",header.type);
+    printf("datacount = %d\n",header.datacount);
+    printf("unidatasize = %d\n",header.unidatasize);
+    printf("datalength = %d\n",header.datalength);
+    int index = 0;
+    for (index = 0; index < datacount; index++)
+    {
+        printf("%d\t%f\n",dividend[index].year, dividend[index].total);
+    }
+*/
+    bRet = true;
+    
+FAILED:
+    
+
+    return bRet;
+}
+
+static bool _Dividend_Parsing(const int Code, const char *Inputfile, const char *Outputfile)
 {
     bool bRet = false;
     FILE *pfinputfile = NULL;
-    FILE *pfoutputfile = NULL;
     char line[256];
     SK_DIVIDEND *dividend = NULL;
-    SK_HEADER *header = NULL;
     char *pstr;
     int index = 0;
     int num = 0;
     int length = 0; 
 
+    
     //check input value
     if (Inputfile == NULL || Outputfile == NULL)
     {
@@ -109,13 +158,6 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
         goto FAILED;
     }
     
-    pfoutputfile = fopen(Outputfile,"w");
-    if (pfoutputfile == NULL)
-    {
-        printf("open file error: %s\n",Outputfile);
-        goto FAILED;
-    }
-
     dividend = malloc(sizeof(SK_DIVIDEND)*20);
 
     //load data to structure SK_DIVIDEND
@@ -140,6 +182,7 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
             {
                 case 0:
                     dividend[num].year = atoi(pstr);
+                    dividend[num].code = Code;
                     break;
                     
                 case 1:
@@ -172,44 +215,44 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
         num++;
         length+= sizeof(SK_DIVIDEND);
     }
-        
-    //dump SK_HEADER and SK_DIVIDEND to output file
-    header = malloc(sizeof(SK_HEADER));
-    if (header == NULL)
+
+    if (!_Dividend_Output(dividend, num, Outputfile))
     {
-        printf("header malloc error\n");
+        printf("Dividend output error \n");
         goto FAILED;
     }
 
-    memset(header,'\0',sizeof(SK_HEADER));
-    
-    header->code = Code;
-    header->type = SK_DATA_TYPE_DIVIDEND;
-    header->datacount = num;
-    header->unidatasize = sizeof(SK_DIVIDEND);
-    header->datalength = length;
-
-    pstr = (char *)header;
-    for (index = 0; index < sizeof(SK_HEADER); index++)
-    {
-        fprintf(pfoutputfile,"%c", pstr[index]);
-    }
-
-    Sort_dividend(dividend,num);
-
-    pstr = (char *)dividend;
-    for (index = 0; index < length; index++)
-    {
-        fprintf(pfoutputfile,"%c", pstr[index]);
-    }
-    
     bRet = true;
 
 FAILED:
     if (pfinputfile !=NULL) fclose(pfinputfile); 
-    if (pfoutputfile !=NULL) fclose(pfoutputfile);
     if (dividend !=NULL) free(dividend);
-    if (header !=NULL) free(header);
+
+    return bRet;
+}
+
+
+bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Outputfile)
+{
+    bool bRet = false;
+    //check input value
+    if (Inputfile == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    if (!_Dividend_Parsing(Code, Inputfile, Outputfile))
+    {
+        printf("Dividend Pasrsing error\n");
+        goto FAILED;
+    }
+
+    //Sort_dividend(dividend,num);
+    
+    bRet = true;
+FAILED:
+    
     return bRet;
     
 }
@@ -218,8 +261,8 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
 {
     bool bRet = false;
     FILE *pfinputfile = NULL;
-    FILE *pfoutputfile_month = NULL;
-    FILE *pfoutputfile_season = NULL;
+    //FILE *pfoutputfile_month = NULL;
+    //FILE *pfoutputfile_season = NULL;
     char line[256];
     SK_EARNING_MONTH *month = NULL;
     SK_EARNING_SEASON *season = NULL;
@@ -232,6 +275,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     int num_season = 0;
     int length_month = 0; 
     int length_season = 0; 
+    SKData_ErrMSG msg = SKData_ErrMSG_Pass;
 
     //check input value
     if (Inputfile == NULL || Outputfile_Month == NULL || Outputfile_Season == NULL)
@@ -247,7 +291,8 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
         printf("open file error: %s\n",Inputfile);
         goto FAILED;
     }
-    
+
+    /*
     pfoutputfile_month = fopen(Outputfile_Month,"w");
     if (pfoutputfile_month == NULL)
     {
@@ -261,6 +306,7 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
         printf("open file error: %s\n",Outputfile_Season);
         goto FAILED;
     }
+*/
 
     //load data to structure SK_EARNING_MONTH and SK_EARNING_SEASON
     month = malloc(sizeof(SK_EARNING_MONTH)*36);
@@ -433,18 +479,24 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     header->unidatasize = sizeof(SK_EARNING_MONTH);
     header->datalength = length_month;
     pstr = (char *)header;
+    /*
     for (index = 0; index < sizeof(SK_HEADER); index++)
     {
         fprintf(pfoutputfile_month,"%c", pstr[index]);
     }
 
-
-    
     pstr = (char *)month;
     for (index = 0; index < length_month; index++)
     {
         fprintf(pfoutputfile_month,"%c", pstr[index]);
     }
+    */
+    msg = SKData_DataInsert(Outputfile_Month, header, month);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
+    {
+        goto FAILED;
+    }
+
     
     //dump SK_HEADER and SK_EARNING_SEASON to output file
     for (index = 0 ; index<12; index++)
@@ -459,6 +511,13 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     header->unidatasize = sizeof(SK_EARNING_SEASON);
     header->datalength = length_season;
 
+    msg = SKData_DataInsert(Outputfile_Season, header, season);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
+    {
+        goto FAILED;
+    }
+
+    /*
     pstr = (char *)header;
     for (index = 0; index < sizeof(SK_HEADER); index++)
     {
@@ -470,13 +529,13 @@ bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Out
     {
         fprintf(pfoutputfile_season,"%c", pstr[index]);
     }
-
+    */
     bRet = true;
     
 FAILED:
     if (pfinputfile !=NULL) fclose(pfinputfile); 
-    if (pfoutputfile_month !=NULL) fclose(pfoutputfile_month);
-    if (pfoutputfile_season !=NULL) fclose(pfoutputfile_season);
+    //if (pfoutputfile_month !=NULL) fclose(pfoutputfile_month);
+    //if (pfoutputfile_season !=NULL) fclose(pfoutputfile_season);
     if (month !=NULL) free(month);
     if (season !=NULL) free(season);
     if (header !=NULL) free(header);
@@ -1174,9 +1233,9 @@ bool SKApi_CVS2SK_Help(void)
     printf("[0] trans price.cvs to sk file\n");
     printf("     cvs2sk 0 price.filelist price.outputpath\n");
     printf("[1] trans dividend.cvs to sk file\n");
-    printf("     cvs2sk 1 dividend.cvs dividend.sk\n");
+    printf("     cvs2sk 1 code dividend.cvs dividend.sk\n");
     printf("[2] trans earning.cvs to sk file\n");
-    printf("     cvs2sk 2  earning.cvs earning.month.sk earning.season.sk\n");
+    printf("     cvs2sk 2  code earning.cvs earning.month.sk earning.season.sk\n");
     printf("[3] continue ...\n");
     printf("==============================================\n");
     return true;

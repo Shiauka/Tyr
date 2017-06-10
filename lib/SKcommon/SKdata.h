@@ -53,6 +53,7 @@ typedef struct
 typedef struct
 {
     unsigned int year;
+    unsigned int code;
     float cash;
     float profit;
     float surplus;
@@ -64,6 +65,7 @@ typedef struct
 {
     unsigned int year;
     unsigned int month;
+    unsigned int code;
     unsigned int income;
 }SK_EARNING_MONTH;
 
@@ -71,6 +73,7 @@ typedef struct
 {
     unsigned int year;
     unsigned int season;
+    unsigned int code;
     unsigned int pretax_income;
     unsigned int aftertax_income;
 }SK_EARNING_SEASON;
