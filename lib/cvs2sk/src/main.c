@@ -34,6 +34,10 @@ int main(int argc, char *argv[])
             bRet = SKApi_CVS2SK_Earning(atoi(argv[2]), argv[3], argv[4], argv[5]);
             break;
 
+        case CVS2SK_GOODINFO_FINGRADE:
+            bRet = SKApi_CVS2SK_GInfoFingrade(atoi(argv[2]), argv[3], argv[4]);
+            break;
+            
         case CVS2SK_FINANCIALREPORT_S:
             bRet = SKApi_CVS2SK_FinancialReport(argv[2],argv[3]);
             break;

@@ -231,7 +231,6 @@ FAILED:
     return bRet;
 }
 
-
 bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Outputfile)
 {
     bool bRet = false;
@@ -250,6 +249,190 @@ bool SKApi_CVS2SK_Dividend(const int Code, const char *Inputfile, const char *Ou
 
     //Sort_dividend(dividend,num);
     
+    bRet = true;
+FAILED:
+    
+    return bRet;
+    
+}
+
+static bool _GInfoFingrade_Output(SK_FINGRADE fingrade, const char* Outputfile)
+{
+    bool bRet = false;
+    SK_HEADER header = {0};
+    SKData_ErrMSG msg = SKData_ErrMSG_Pass;
+    
+    //check input value
+    if (Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //dump SK_HEADER and SK_DIVIDEND to output file
+    
+    header.code = fingrade.code;
+    header.type = SK_DATA_TYPE_GOODINFO_FINGRADE;
+    header.datacount = 1;
+    header.unidatasize = sizeof(SK_FINGRADE);
+    header.datalength = header.datacount * sizeof(SK_FINGRADE);
+
+    msg = SKData_DataInsert(Outputfile, &header, &fingrade);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
+    {
+        goto FAILED;
+    }
+
+/*
+    printf("HEADER:\n");
+    printf("Code = %d\n",header.code);
+    printf("type = %d\n",header.type);
+    printf("datacount = %d\n",header.datacount);
+    printf("unidatasize = %d\n",header.unidatasize);
+    printf("datalength = %d\n",header.datalength);
+    printf("fingrade.cash = %.02f\n",fingrade.cash);
+    printf("fingrade.receivable = %.02f\n",fingrade.receivable);
+    printf("fingrade.stock = %.02f\n",fingrade.stock);
+    printf("fingrade.invest = %.02f\n",fingrade.invest);
+    printf("fingrade.otherasset = %.02f\n",fingrade.otherasset);
+    printf("fingrade.debt = %.02f\n",fingrade.debt);
+    printf("fingrade.GPM = %.02f\n",fingrade.GPM);
+    printf("fingrade.OPM = %.02f\n",fingrade.OPM);
+    printf("fingrade.NOPM = %.02f\n",fingrade.NOPM);
+    printf("fingrade.NPM = %.02f\n",fingrade.NPM);
+    printf("fingrade.ROE = %.02f\n",fingrade.ROE);
+    printf("fingrade.ROA = %.02f\n",fingrade.ROA);
+    printf("fingrade.CFR = %.02f\n",fingrade.CFR);
+*/    
+    bRet = true;
+    
+FAILED:
+    
+
+    return bRet;
+}
+
+static bool _GInfoFingrade_Parsing(const int Code, const char *Inputfile, const char *Outputfile)
+{
+    bool bRet = false;
+    FILE *pfinputfile = NULL;
+    char line[256];
+    SK_FINGRADE fingrade;
+    char *pstr;
+    int index = 0;
+
+    //check input value
+    if (Inputfile == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //open input/output file
+    pfinputfile = fopen(Inputfile,"r");
+    if (pfinputfile == NULL)
+    {
+        printf("open file error: %s\n",Inputfile);
+        goto FAILED;
+    }
+    
+    //load data to structure SK_DIVIDEND
+    while (fgets (line, 256, pfinputfile)!=NULL)
+    {
+        pstr = strtok(line," \t\n,\"(%)");
+        pstr = strtok(NULL," \t\n,\"(%)");    
+        
+        switch (index)
+        {
+            case 0:
+                fingrade.code = Code;
+                fingrade.cash = atof(pstr);
+                break;
+                
+            case 1:
+                fingrade.receivable = atof(pstr);
+                break;
+                
+            case 2:
+                fingrade.stock = atof(pstr);
+                break;
+                
+            case 3:
+                fingrade.invest = atof(pstr);
+                break;
+                
+            case 4:
+                fingrade.otherasset = atof(pstr);
+                break;
+                
+            case 5:
+                fingrade.debt = atof(pstr);
+                break;
+                
+            case 6:
+                fingrade.GPM = atof(pstr);
+                break;
+                
+            case 7:
+                fingrade.OPM = atof(pstr);
+                break;
+                
+            case 8:
+                fingrade.NOPM = atof(pstr);
+                break;
+                
+            case 9:
+                fingrade.NPM = atof(pstr);
+                break;
+                
+            case 10:
+                fingrade.ROE = atof(pstr);
+                break;
+                
+            case 11:
+                fingrade.ROA = atof(pstr);
+                break;
+                
+            case 12:
+                fingrade.CFR = atof(pstr);
+                break;
+                
+            default:
+                break;
+        }
+        index++;
+    }
+    
+    if (!_GInfoFingrade_Output(fingrade, Outputfile))
+    {
+        printf("GInfoFingrade output error \n");
+        goto FAILED;
+    }
+
+    bRet = true;
+
+FAILED:
+    if (pfinputfile !=NULL) fclose(pfinputfile); 
+    
+    return bRet;
+}
+
+bool SKApi_CVS2SK_GInfoFingrade(const int Code, const char *Inputfile, const char *Outputfile)
+{
+    bool bRet = false;
+    //check input value
+    if (Inputfile == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    if (!_GInfoFingrade_Parsing(Code, Inputfile, Outputfile))
+    {
+        printf("GInfoFingrade Pasrsing error\n");
+        goto FAILED;
+    }
+
     bRet = true;
 FAILED:
     

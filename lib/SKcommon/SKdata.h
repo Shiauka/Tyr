@@ -13,6 +13,7 @@ typedef enum
     SK_DATA_TYPE_EARNING_SEASON = 2,
     SK_DATA_TYPE_PRICE = 3,
     SK_DATA_TYPE_FINANCIALREPORT_SEASON = 4,
+    SK_DATA_TYPE_GOODINFO_FINGRADE = 5,
     SK_DATA_TYPE_NULL,
     SK_DATA_TYPE_MAX,
 }SK_DATA_TYPE;
@@ -116,11 +117,30 @@ typedef struct
 typedef struct
 {
     unsigned int code;
+    float cash;
+    float receivable;
+    float stock;
+    float invest;
+    float otherasset;
+    float debt;
+    float GPM; // gross profit margin
+    float OPM;// operating profit margin
+    float NOPM; // non-operating profit margin
+    float NPM; // net profit margin
+    float ROE; //return on equity
+    float ROA; //return on assets
+    float CFR; // cash flow ratio
+}SK_FINGRADE;
+
+typedef struct
+{
+    unsigned int code;
     SK_PRICE *price;
     SK_EARNING_SEASON *earning_s;
     SK_EARNING_MONTH *earning_m;
     SK_DIVIDEND *dividend;
     SK_FINANCIAL *financial;
+    SK_FINGRADE *fingrade;
 }SK_STOCK;
 
 typedef struct

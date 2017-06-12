@@ -170,36 +170,36 @@ static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
     switch (header.type)
     {
         case SK_DATA_TYPE_PRICE:            
-            /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].price);
             stock[index].price = (SK_PRICE *)p;
             break;  
             
         case SK_DATA_TYPE_DIVIDEND:
-            /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].dividend);
             stock[index].dividend = (SK_DIVIDEND *)p;
             break;      
             
         case SK_DATA_TYPE_EARNING_MONTH:
-            /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].earning_m); 
             stock[index].earning_m = (SK_EARNING_MONTH *)p;
             _optimize_earning_month(stock[index].earning_m);
             break;
             
         case SK_DATA_TYPE_EARNING_SEASON:
-             /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].earning_s);
             stock[index].earning_s = (SK_EARNING_SEASON *)p;
             break;
 
         case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
-             /*TODO:  add parsing origanl data and combine flow*/ 
             FREE_MEM(stock[index].financial);
             stock[index].financial = (SK_FINANCIAL *)p;
             break;
 
+        case SK_DATA_TYPE_GOODINFO_FINGRADE:
+            FREE_MEM(stock[index].fingrade);
+            stock[index].fingrade = (SK_FINGRADE *)p;
+            break;
+      
         default:
             printf("Code: %d has incorrect type\n",header.code);
             return false;
@@ -217,22 +217,11 @@ static bool _SK_Datasave(SK_HEADER header, FILE *pfinputfile)
     switch (header.type)
     {
         case SK_DATA_TYPE_PRICE:
-            bRet = _stock_savedata(header, pfinputfile);
-            break;  
-            
         case SK_DATA_TYPE_DIVIDEND:
-            bRet =  _stock_savedata(header, pfinputfile);
-            break;      
-            
         case SK_DATA_TYPE_EARNING_MONTH:
-            bRet = _stock_savedata(header, pfinputfile);
-            break;
-            
         case SK_DATA_TYPE_EARNING_SEASON:
-            bRet = _stock_savedata(header, pfinputfile);
-            break;
-            
         case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
+        case SK_DATA_TYPE_GOODINFO_FINGRADE: 
             bRet = _stock_savedata(header, pfinputfile);
             break;
 
@@ -384,6 +373,30 @@ static bool _Dump_financial_report(unsigned int code)
     return true;
 }
 
+static bool _Dump_goodinfo_fingrade(unsigned int code)
+{
+    int index = _stock_getindex(code);
+    if (index == -1)
+        return false;
+
+    printf("fingrade.cash = %.02f\n",stock[index].fingrade->cash);
+    printf("fingrade.receivable = %.02f\n",stock[index].fingrade->receivable);
+    printf("fingrade.stock = %.02f\n",stock[index].fingrade->stock);
+    printf("fingrade.invest = %.02f\n",stock[index].fingrade->invest);
+    printf("fingrade.otherasset = %.02f\n",stock[index].fingrade->otherasset);
+    printf("fingrade.debt = %.02f\n",stock[index].fingrade->debt);
+    printf("fingrade.GPM = %.02f\n",stock[index].fingrade->GPM);
+    printf("fingrade.OPM = %.02f\n",stock[index].fingrade->OPM);
+    printf("fingrade.NOPM = %.02f\n",stock[index].fingrade->NOPM);
+    printf("fingrade.NPM = %.02f\n",stock[index].fingrade->NPM);
+    printf("fingrade.ROE = %.02f\n",stock[index].fingrade->ROE);
+    printf("fingrade.ROA = %.02f\n",stock[index].fingrade->ROA);
+    printf("fingrade.CFR = %.02f\n",stock[index].fingrade->CFR);
+
+    return true;
+}
+
+
 bool SKApi_SKANALYSER_Dump(const char *Inputfile)
 {
     bool bRet = false;
@@ -432,6 +445,10 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
 
         case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
             _Dump_financial_report(header.code);
+            break;
+            
+        case SK_DATA_TYPE_GOODINFO_FINGRADE:
+            _Dump_goodinfo_fingrade(header.code);
             break;
             
         default:

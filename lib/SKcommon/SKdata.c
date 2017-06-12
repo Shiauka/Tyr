@@ -182,6 +182,13 @@ static bool _SKData_DataInsert_Dividend(SK_DIVIDEND *orgData,  SK_HEADER *orgHea
     return true;
 }
 
+static bool _SKData_DataInsert_GIFingrade(SK_FINGRADE *orgData,  SK_HEADER *orgHeader, SK_FINGRADE *newData,  SK_HEADER *newHeader)
+{
+    int index_new = 0, index_org = 0;
+    memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);    
+    return true;
+}
+
 static bool _SKData_DataInsert_Price(SK_PRICE *orgData,  SK_HEADER *orgHeader, SK_PRICE *newData,  SK_HEADER *newHeader)
 {
 /*
@@ -388,6 +395,10 @@ SKData_ErrMSG SKData_DataInsert(const char *filename, SK_HEADER *insertheader, v
                 
             case SK_DATA_TYPE_EARNING_SEASON:
                 _SKData_DataInsert_EarningSeason((SK_EARNING_SEASON *)skdata, &fheader, (SK_EARNING_SEASON *)insertData, insertheader);
+                break;
+
+            case SK_DATA_TYPE_GOODINFO_FINGRADE:
+                _SKData_DataInsert_GIFingrade((SK_FINGRADE *)skdata, &fheader, (SK_FINGRADE *)insertData, insertheader);
                 break;
                 
             default:
