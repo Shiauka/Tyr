@@ -123,6 +123,27 @@ typedef struct
     SK_FINANCIAL *financial;
 }SK_STOCK;
 
+typedef struct
+{
+    unsigned int *code;
+    unsigned int codenum;
+}SK_CODELIST;
+
+typedef struct
+{
+    unsigned int year;
+    float Price_max;
+    float Price_min;
+    float Price_avg;
+    float PEratio_max;
+    float PEratio_min;
+    float PEratio_avg;
+    float EPS;
+    float rentcash;
+    float rentstock;
+    float renttotal;
+}SK_STOCK_INFO;
+
 SKData_ErrMSG SKData_FileOpen(const char *filename, SK_DATA_TYPE *type, void *data);
 SKData_ErrMSG SKData_FileClose(const char *filename, SK_DATA_TYPE type, void *data);
 SKData_ErrMSG SKData_DataInsert(const char *filename, SK_HEADER *insertheader, void *insertData);

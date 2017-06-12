@@ -7,7 +7,8 @@
 typedef enum
 {
     SKANALYSER_TYPE_DUMP = 0,
-    SKANALYSER_TYPE_ANALYSIS,
+    SKANALYSER_TYPE_ANALYSIS = 1,
+    SKANALYSER_TYPE_RENTSTOCK = 2,
     SKANALYSER_TYPE_MAX = 0xFFFF,
 }SKANALYSER_TYPE;
 
@@ -52,6 +53,7 @@ typedef struct
 bool SKApi_SKANALYSER_Dump(const char *Inputfile);
 bool SKApi_SKANALYSER_Help(void);
 bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path);
+bool SKApi_SKANALYSER_RentStock(void);
 bool SKApi_SKANALYSER_Init(void);
 void  SKApi_SKANALYSER_Deinit(void);
 

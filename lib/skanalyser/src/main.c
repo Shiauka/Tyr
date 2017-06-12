@@ -14,6 +14,7 @@ static bool checkparanum(int cmd, int arg)
             break;
 
         case SKANALYSER_TYPE_ANALYSIS:
+        case SKANALYSER_TYPE_RENTSTOCK:    
             if (arg == 4)
                 bRet = true;
             break;
@@ -47,6 +48,15 @@ int main(int argc, char *argv[])
     if (!SKApi_SKANALYSER_Init())
         return 0;
 
+    if (_intcommand != SKANALYSER_TYPE_DUMP)
+    {
+        if (!SKApi_SKANALYSER_Fileread(argv[2], argv[3]))
+        {
+            printf("File read error\n");
+            goto FAILED;
+        }
+    }
+
     /*start function*/
     switch (_intcommand)
     {   
@@ -54,21 +64,24 @@ int main(int argc, char *argv[])
             bRet = SKApi_SKANALYSER_Dump(argv[2]);
             break;
 
-        case SKANALYSER_TYPE_ANALYSIS:
-            bRet = SKApi_SKANALYSER_Fileread(argv[2], argv[3]);
+        case SKANALYSER_TYPE_ANALYSIS:            
+            break;
+
+        case SKANALYSER_TYPE_RENTSTOCK:
+            bRet = SKApi_SKANALYSER_RentStock();
             break;
             
         default:
             break;
     }
+    
 
+FAILED:
     SKApi_SKANALYSER_Deinit();
 
     if (!bRet)
-    {
-        printf("sk analysis function error\n");
-        return 0;
-    }
+        printf("SK analyser error\n");
+
     
-    return 1;
+    return bRet;
 }

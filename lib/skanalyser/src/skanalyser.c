@@ -5,9 +5,11 @@
 
 
 #define FREE_MEM(x)     do{if (x != NULL) {free(x);}}while(0);       
-#define STOCK_NUM 1000
+#define STOCK_NUM 1500
+#define STOCK_INFO_NUM 30
 static SK_STOCK stock[STOCK_NUM];
-
+static SK_CODELIST skcodelist;
+static SK_STOCK_INFO skinfo[STOCK_INFO_NUM];
 
 static void *SK_Realloc(void *ptr, size_t size)
 {
@@ -113,6 +115,13 @@ static void _stock_freestock_all(void)
     {
         _stock_freestock_specificindex(index);
     }
+
+    /*free code list*/
+    FREE_MEM(skcodelist.code);
+    skcodelist.codenum = 0;
+
+    /*free stock info*/
+    memset(skinfo, '\0',sizeof(skinfo));
 }
 
 static void _optimize_earning_month(SK_EARNING_MONTH *earning_m)
@@ -295,7 +304,7 @@ static bool _Dump_price(unsigned int code)
             stock[index].price[i].strikestock, stock[index].price[i].turnover, 
             stock[index].price[i].price_start, stock[index].price[i].price_max, 
             stock[index].price[i].price_min, stock[index].price[i].price_end, 
-            stock[index].price[i].price_diff, stock[index].price[i].strikenum);
+            stock[index].price[i].PEratio, stock[index].price[i].strikenum);
     }
     return true;
 }
@@ -842,7 +851,7 @@ static float _PriceEstimation_ratio2price(float ratio, Estimation_dividend *divi
     return Price;
 }
 
-static bool SKApi_SKANALYSER_PriceEstimation(unsigned int code,Estimation_dividend *dividend)
+bool SKApi_SKANALYSER_PriceEstimation(unsigned int code,Estimation_dividend *dividend)
 {
     bool bRet = false;
     Estimation_dividend_ratio Dividend_ratio = {0};
@@ -862,7 +871,7 @@ FAILED:
     return bRet;
 }
 
-static bool SKApi_SKANALYSER_DividendEstimation(unsigned int code, unsigned int year, Estimation_dividend *retDividends)
+bool SKApi_SKANALYSER_DividendEstimation(unsigned int code, unsigned int year, Estimation_dividend *retDividends)
 {
     bool bRet = false;
     Estimation_dividend Dividend = {0};
@@ -912,6 +921,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
     unsigned int code = 0;
     char filename[128];
     char line[16];
+    bool FileReadError = false;
     
     /*open code list file*/
     flist = fopen(codelist,"r");
@@ -932,6 +942,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
+            FileReadError = true;
         }
 
         memset(filename,'\0', 128);
@@ -939,6 +950,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
+            FileReadError = true;
         }
 
         memset(filename,'\0', 128);
@@ -946,6 +958,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
+            FileReadError = true;
         }
 
         memset(filename,'\0', 128);
@@ -953,20 +966,26 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
+            FileReadError = true;
         }
 
+        /*
         memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.financial",path,code);
         if (!_SK_Fileread(filename))
         {
             printf("fread failed : %s\n",filename);
         }
+        */
 
-        Estimation_dividend Dividend = {0};
-        SKApi_SKANALYSER_DividendEstimation(code, 104,&Dividend);
-        printf("[code : %d],[cash : %0.02f],[stock : %0.02f]\n",code,Dividend.cash,Dividend.stock);  
-        SKApi_SKANALYSER_PriceEstimation(code, &Dividend);
+        if (!FileReadError)
+        {
+            skcodelist.code[skcodelist.codenum] = code;
+            skcodelist.codenum++;
+        }
+        
         code = 0;
+        FileReadError = false;
     }
 
     bRet = true;
@@ -978,9 +997,229 @@ FAILED:
     return bRet;
 }
 
+static bool _RentStock_GetSKInfo(int code)
+{
+    bool bRet = false;
+    int index = 0;
+    int skinfoindex = 0;
+    int skinfonum = 0;
+    int codeindex = _stock_getindex(code);
+
+    float Totalprice = 0;
+    float TotalPEratio = 0;
+    int currentyear = 0;
+    int Totalday = 0;
+    int Totalday_peratio = 0;
+    bool skip_petatio = false;
+    int TheLastYear = 0;
+
+    /*free stock info*/
+    memset(skinfo, '\0',sizeof(skinfo));    
+
+    /*parsing price stucture*/
+    currentyear = stock[codeindex].price[0].year;
+    for (index = 0 ; stock[codeindex].price[index].year != 0; index++)
+    {
+        if (stock[codeindex].price[index].year != currentyear)
+        {
+            skinfo[skinfoindex].year = currentyear;
+            skinfo[skinfoindex].PEratio_avg = TotalPEratio /  Totalday_peratio;
+            skinfo[skinfoindex].Price_avg = Totalprice /  Totalday;
+            skinfo[skinfoindex].EPS = skinfo[skinfoindex].Price_avg / skinfo[skinfoindex].PEratio_avg;
+            Totalprice = 0;
+            TotalPEratio = 0;
+            Totalday = 0;
+            Totalday_peratio = 0;
+            currentyear = stock[codeindex].price[index].year;
+            skinfoindex++;
+        }
+
+        if (stock[codeindex].price[index].price_end > skinfo[skinfoindex].Price_max)
+            skinfo[skinfoindex].Price_max = stock[codeindex].price[index].price_end;
+        if (stock[codeindex].price[index].price_end < skinfo[skinfoindex].Price_min ||skinfo[skinfoindex].Price_min == 0)
+            skinfo[skinfoindex].Price_min = stock[codeindex].price[index].price_end;
+        if (stock[codeindex].price[index].PEratio>= skinfo[skinfoindex].PEratio_max)
+        {
+            if ( skinfo[skinfoindex].PEratio_max == 0 || stock[codeindex].price[index].PEratio <= skinfo[skinfoindex].PEratio_max *3)
+                skinfo[skinfoindex].PEratio_max = stock[codeindex].price[index].PEratio;
+            else
+                skip_petatio = true;
+        }
+        if (stock[codeindex].price[index].PEratio <= skinfo[skinfoindex].PEratio_min ||skinfo[skinfoindex].PEratio_min == 0)
+        {
+             if (stock[codeindex].price[index].PEratio > 0)
+                skinfo[skinfoindex].PEratio_min = stock[codeindex].price[index].PEratio;
+             else
+                skip_petatio = true;
+        }
+        Totalprice += stock[codeindex].price[index].price_end;
+        if (skip_petatio)
+        {
+            skip_petatio = false;
+        }
+        else
+        {
+            TotalPEratio += stock[codeindex].price[index].PEratio;
+            Totalday_peratio++;
+        }
+        Totalday++;
+        
+    }
+    skinfo[skinfoindex].year = currentyear;
+    skinfo[skinfoindex].PEratio_avg = TotalPEratio /  Totalday;
+    skinfo[skinfoindex].Price_avg = Totalprice /  Totalday_peratio;
+    skinfo[skinfoindex].EPS = skinfo[skinfoindex].Price_avg / skinfo[skinfoindex].PEratio_avg ;
+    skinfonum = skinfoindex;
+
+    /*The last price*/
+    skinfo[skinfoindex+1].year = stock[codeindex].price[index-1].year * 10000+ stock[codeindex].price[index-1].month * 100 + stock[codeindex].price[index-1].day;
+    skinfo[skinfoindex+1].Price_max = stock[codeindex].price[index-1].price_end;
+    skinfo[skinfoindex+1].Price_min = stock[codeindex].price[index-1].price_end;
+    skinfo[skinfoindex+1].Price_avg= stock[codeindex].price[index-1].price_end;
+    skinfo[skinfoindex+1].PEratio_max = stock[codeindex].price[index-1].PEratio;
+    skinfo[skinfoindex+1].PEratio_min = stock[codeindex].price[index-1].PEratio;
+    skinfo[skinfoindex+1].PEratio_avg = stock[codeindex].price[index-1].PEratio;
+    skinfo[skinfoindex+1].EPS = skinfo[skinfoindex+1].Price_avg / skinfo[skinfoindex+1].PEratio_avg ;
+    skinfonum++;
+
+    /*parsing divided stucture*/
+    for (index = 0 ; stock[codeindex].dividend[index].year != 0; index++)
+    {
+        for (skinfoindex = 0; skinfoindex <= skinfonum; skinfoindex++)
+        {
+            if (stock[codeindex].dividend[index].year+1 == skinfo[skinfoindex].year)
+            {
+                skinfo[skinfoindex].rentcash = stock[codeindex].dividend[index].cash;
+                skinfo[skinfoindex].rentstock = stock[codeindex].dividend[index].stock;
+                skinfo[skinfoindex].renttotal = stock[codeindex].dividend[index].total;
+                if (TheLastYear < stock[codeindex].dividend[index].year)
+                {
+                    TheLastYear = stock[codeindex].dividend[index].year;
+                    skinfo[skinfonum].rentcash = stock[codeindex].dividend[index].cash;
+                    skinfo[skinfonum].rentstock = stock[codeindex].dividend[index].stock;
+                    skinfo[skinfonum].renttotal = stock[codeindex].dividend[index].total;
+                }
+                break;
+            }
+        }
+    }
+    
+    bRet = true;
+    return bRet;
+}
+
+static bool _RentStock_Output(int code)
+{
+    bool bRet = false;
+    int index = 0;
+    float RentTotalRatio_avg = 0;
+    float RentCashRatio_avg = 0;
+    int codeindex = _stock_getindex(code);
+    bool bprint = false;
+    float PEratio_avg5 = 0;
+    int PEratio_num = 0;
+    float Price_buy = 0;
+    float Price_buy_ratio = 0;
+    
+    for (index = 0; skinfo[index].year != 0; index ++)
+    {
+        /*The last year*/
+        if (skinfo[index+1].year != 0)
+        {
+            if (skinfo[index+6].year  == 0)
+            {
+                PEratio_avg5 += skinfo[index].PEratio_avg;
+                PEratio_num++;
+            }
+            continue;
+        }
+        
+        RentCashRatio_avg = skinfo[index].rentcash / skinfo[index].Price_avg*100;
+        RentTotalRatio_avg = (skinfo[index].rentcash +(skinfo[index].rentstock / 10) *  
+        (skinfo[index].Price_avg * (10 -skinfo[index].rentstock) / 10 -skinfo[index].rentcash))/ skinfo[index].Price_avg*100;
+        PEratio_avg5 = PEratio_avg5 / PEratio_num;
+        Price_buy = PEratio_avg5 * skinfo[index].EPS;
+        Price_buy_ratio = (Price_buy / skinfo[index].Price_avg  - 1 ) * 100;
+
+        //condition
+        // 1. cash rent ratio > 6 %  or  total(cash + stock) rent Ratio > 9 %
+        // 2. the last 5 year PEratio average < 15
+        // 3. current PEratio > the last 5 year PEratio
+
+        if ((RentCashRatio_avg >= 5 ||RentTotalRatio_avg >= 7) && PEratio_avg5 <= 15)
+        {
+            if (Price_buy >=skinfo[index].Price_avg && (Price_buy_ratio > 5 && Price_buy_ratio < 60))
+            {
+                bprint = true;
+            }
+        }
+    }
+
+    if (bprint)
+    {
+        printf("%s(%d),",stock[codeindex].price[0].name,code);
+        for (index = 0; skinfo[index].year != 0; index ++)
+        {
+            RentCashRatio_avg = skinfo[index].rentcash / skinfo[index].Price_avg*100;
+            RentTotalRatio_avg = (skinfo[index].rentcash +(skinfo[index].rentstock / 10) *  
+            (skinfo[index].Price_avg * (10 -skinfo[index].rentstock) / 10 -skinfo[index].rentcash))/ skinfo[index].Price_avg*100;
+
+            if (index == 0)
+            {    
+                 /*csv format output*/
+                printf("%d,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,\n",
+                skinfo[index].year, skinfo[index].Price_max, 
+                skinfo[index].Price_min, skinfo[index].Price_avg, 
+                skinfo[index].PEratio_avg,skinfo[index].EPS,skinfo[index].rentcash, 
+                skinfo[index].rentstock,RentCashRatio_avg , RentTotalRatio_avg );
+            }
+            else
+            {
+                 /*csv format output*/
+                printf(",%d,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,\n",
+                skinfo[index].year, skinfo[index].Price_max, 
+                skinfo[index].Price_min, skinfo[index].Price_avg, 
+                skinfo[index].PEratio_avg,skinfo[index].EPS, skinfo[index].rentcash, 
+                skinfo[index].rentstock,RentCashRatio_avg , RentTotalRatio_avg );
+            }
+        }
+
+        /*print buy price*/
+        printf(",%.02f,%.02f,\n",Price_buy,Price_buy_ratio);
+    }
+    
+    bRet = true;
+    return bRet;
+}
+
+bool SKApi_SKANALYSER_RentStock(void)
+{
+    bool bRet = false;
+    int index = 0;
+
+    printf("skcodelist.codenum = %d \n",skcodelist.codenum);
+
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        _RentStock_GetSKInfo(skcodelist.code[index]);
+        _RentStock_Output(skcodelist.code[index]);
+    }
+    
+    bRet = true;
+    return bRet;
+}
+
 bool SKApi_SKANALYSER_Init(void)
 {
     _stock_freestock_all();
+    
+    skcodelist.code = SK_Malloc(sizeof(unsigned int)*STOCK_NUM);
+    if (skcodelist.code ==NULL)
+    {
+        printf("skanalyser init malloc fai\nl");
+        return false;
+    }
+    
     return true;
 }
 
