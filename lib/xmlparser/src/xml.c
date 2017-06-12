@@ -3,7 +3,7 @@
 #include "expat.h"
 #include "string.h"
 
-#define BUFFSIZE 8192
+#define BUFFSIZE 32768
 static char _XMLBuffer[BUFFSIZE];
 static int firstyear =0;
 static int secondyear = 0;
@@ -454,6 +454,64 @@ static void _XSC_Yahoo_Company_char_handle(void *userData, const XML_Char *s, in
     }
 }
 
+static void _XSC_Goodinfo_Fingrade_element_handle_start(void *userData, const char *name, const char **attr)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    int i =0;
+    
+    userptr->depth +=1;
+
+    if (strcmp("tr",name)==0)
+    {
+        for (i = 0; attr[i]; i+=2)
+        {
+            if (strcmp("onmouseout",attr[i])==0 && strcmp("this.style.background=",attr[i+1])==0)
+            {
+                userptr->find = true;
+                userptr->findcount  = 0;
+                break;
+             }
+        }
+    }
+
+}
+
+static void _XSC_Goodinfo_Fingrade_element_handle_end(void *userData, const char *name)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+
+    userptr->depth -=1;
+    if (strcmp("tr",name)==0)
+    {
+        userptr->find = false;
+    }
+}
+
+static void _XSC_Goodinfo_Fingrade_char_handle(void *userData, const XML_Char *s, int len)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    char temp[512]= {0};
+    
+    if ( len <= 1 && (s[0] == 0xA))
+    {
+        /*do nothing with dummy data from xml parsing bug*/
+        return;
+    }
+
+    if (userptr->find)
+    {
+        memcpy(temp,s,len);
+        if (userptr->findcount == 1)
+        {
+            fprintf(userptr->outfile, " %s ,",temp);
+        }
+        else if(userptr->findcount == 2)
+        {
+            fprintf(userptr->outfile, " %s ,\n",temp);
+        }
+        userptr->findcount++;
+    }
+}
 
 bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CASE XSC)
 {    
@@ -488,6 +546,10 @@ bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CA
         case XSC_YAHOO_COMPANY:
             XML_SetElementHandler(parser, _XSC_Yahoo_Company_element_handle_start, _XSC_Yahoo_Company_element_handle_end);
             XML_SetCharacterDataHandler(parser,_XSC_Yahoo_Company_char_handle);
+            break;
+        case XSC_GOODINFO_FINGRADE:
+            XML_SetElementHandler(parser, _XSC_Goodinfo_Fingrade_element_handle_start, _XSC_Goodinfo_Fingrade_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_Goodinfo_Fingrade_char_handle);
             break;
         default:
             goto FAILED_CASE;
