@@ -185,7 +185,8 @@ static bool _SKData_DataInsert_Dividend(SK_DIVIDEND *orgData,  SK_HEADER *orgHea
 static bool _SKData_DataInsert_GIFingrade(SK_FINGRADE *orgData,  SK_HEADER *orgHeader, SK_FINGRADE *newData,  SK_HEADER *newHeader)
 {
     int index_new = 0, index_org = 0;
-    memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);    
+    memcpy(&orgData[index_org], &newData[index_new], newHeader->datalength);
+    memcpy(orgHeader, newHeader, sizeof(SK_HEADER));
     return true;
 }
 
@@ -227,6 +228,35 @@ static bool _SKData_DataInsert_Price(SK_PRICE *orgData,  SK_HEADER *orgHeader, S
     
     return true;
 }
+
+static bool _SKData_DataInsert_Mopsfinreport(SK_MOPSFINREPORT *orgData,  SK_HEADER *orgHeader, SK_MOPSFINREPORT *newData,  SK_HEADER *newHeader)
+{
+    int index_new = 0, index_org = 0;
+
+    //check data
+    for (index_new = 0; index_new < newHeader->datacount; index_new++)
+    {
+        for (index_org = 0; index_org < orgHeader->datacount; index_org++)
+        {
+            if (orgData[index_org].year== newData[index_new].year)
+            {
+                break;
+            }
+        }
+
+        //add data
+        if (index_org >= orgHeader->datacount)
+        {
+            orgHeader->datalength += orgHeader->unidatasize;
+            orgHeader->datacount++;
+            //SK_Realloc((void *)orgData, orgHeader->datalength + orgHeader->unidatasize);
+            memcpy(&orgData[index_org], &newData[index_new], orgHeader->unidatasize);
+        }
+    }
+    
+    return true;
+}
+
 
 SKData_ErrMSG SKData_DataSort(const char *filename)
 {
@@ -399,6 +429,10 @@ SKData_ErrMSG SKData_DataInsert(const char *filename, SK_HEADER *insertheader, v
 
             case SK_DATA_TYPE_GOODINFO_FINGRADE:
                 _SKData_DataInsert_GIFingrade((SK_FINGRADE *)skdata, &fheader, (SK_FINGRADE *)insertData, insertheader);
+                break;
+
+            case SK_DATA_TYPE_MOPSTWSE_FINREPORT:
+                _SKData_DataInsert_Mopsfinreport((SK_MOPSFINREPORT *)skdata, &fheader, (SK_MOPSFINREPORT *)insertData, insertheader);
                 break;
                 
             default:

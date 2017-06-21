@@ -14,6 +14,7 @@ typedef enum
     SK_DATA_TYPE_PRICE = 3,
     SK_DATA_TYPE_FINANCIALREPORT_SEASON = 4,
     SK_DATA_TYPE_GOODINFO_FINGRADE = 5,
+    SK_DATA_TYPE_MOPSTWSE_FINREPORT = 6,
     SK_DATA_TYPE_NULL,
     SK_DATA_TYPE_MAX,
 }SK_DATA_TYPE;
@@ -135,12 +136,38 @@ typedef struct
 typedef struct
 {
     unsigned int code;
+    int year;
+    float DebtsRatio;
+    float LTFixedAsset;//Long term funds to fixed assets
+    float CurrentRatio;
+    float QuickRatio;
+    float InterestProtectionMultiples; //Interest Protection Multiples
+    float AvgCollectionTurnover; //Average collection turnover(times)
+    float AvgCollectionDay; //Average collection days
+    float AvgInvent;
+    float AvgInventoryTurnoverDay; //Average inventory turnover days
+    float FixedAssetTurnover; //Fixed assets turnover (time)
+    float TotalAssetTurnover; //Total assets turnover (time)
+    float ReturnOnTotalAsset;//Return on total assets
+    float ReturnOnTotalStockholder; //Return on total stockholder
+    float PerTaxIncomeToCapitalRatio; //Per-tax income to capital
+    float NetIncomeToSales;//Net income to sales
+    float EPS;
+    float CashFlowRatio;
+    float CashFlowAdequacyRatio; //Cash flow adequacy ratio
+    float CashFlowReinvestmentRatio; //Cash flow reinvestment ratio
+}SK_MOPSFINREPORT;
+
+typedef struct
+{
+    unsigned int code;
     SK_PRICE *price;
     SK_EARNING_SEASON *earning_s;
     SK_EARNING_MONTH *earning_m;
     SK_DIVIDEND *dividend;
     SK_FINANCIAL *financial;
     SK_FINGRADE *fingrade;
+    SK_MOPSFINREPORT *finreport;
 }SK_STOCK;
 
 typedef struct

@@ -440,6 +440,244 @@ FAILED:
     
 }
 
+static bool _MopstwseFinReport_Output(SK_MOPSFINREPORT *finreport, int datacount, const char* Outputfile)
+{
+    bool bRet = false;
+    SK_HEADER header = {0};
+    SKData_ErrMSG msg = SKData_ErrMSG_Pass;
+    
+    //check input value
+    if (Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //dump SK_HEADER and SK_DIVIDEND to output file
+    header.code = finreport[0].code;
+    header.type = SK_DATA_TYPE_MOPSTWSE_FINREPORT;
+    header.datacount = datacount;
+    header.unidatasize = sizeof(SK_MOPSFINREPORT);
+    header.datalength = header.datacount * sizeof(SK_MOPSFINREPORT);
+
+    msg = SKData_DataInsert(Outputfile, &header, finreport);
+    if (!(msg == SKData_ErrMSG_Pass || msg == SKData_ErrMSG_Pass_Newfile))
+    {
+        goto FAILED;
+    }
+    
+    bRet = true;
+    
+FAILED:
+    
+
+    return bRet;
+}
+
+
+static bool _MopstwseFinReport_Parsing(const int Code, const char *Inputfile, const char *Outputfile)
+{
+    bool bRet = false;
+    FILE *pfinputfile = NULL;
+    char line[256];
+    SK_MOPSFINREPORT finreport[3];
+    char *pstr1, *pstr2, *pstr3;
+    int index = 0;
+
+    //check input value
+    if (Inputfile == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    //open input/output file
+    pfinputfile = fopen(Inputfile,"r");
+    if (pfinputfile == NULL)
+    {
+        printf("open file error: %s\n",Inputfile);
+        goto FAILED;
+    }
+
+    //load data to structure SK_DIVIDEND
+    while (fgets (line, 256, pfinputfile)!=NULL)
+    {
+        pstr1 = strtok(line," \t\n,\"");
+        pstr1 = strtok(NULL," \t\n,\"");
+        pstr2 = strtok(NULL," \t\n,\"");
+        pstr3 = strtok(NULL," \t\n,\"");
+        
+        switch (index)
+        {
+            case 0:
+                finreport[0].code = Code;
+                finreport[0].year = atoi(pstr1);
+                finreport[1].code = Code;
+                finreport[1].year = atoi(pstr2);
+                finreport[2].code = Code;
+                finreport[2].year = atoi(pstr3);
+                break;
+
+            case 1:
+                finreport[0].DebtsRatio = atof(pstr1);
+                finreport[1].DebtsRatio = atof(pstr2);
+                finreport[2].DebtsRatio = atof(pstr3);
+                break;
+
+            case 2:
+                finreport[0].LTFixedAsset = atof(pstr1);
+                finreport[1].LTFixedAsset = atof(pstr2);
+                finreport[2].LTFixedAsset = atof(pstr3);
+                break;
+
+            case 3:
+                finreport[0].CurrentRatio = atof(pstr1);
+                finreport[1].CurrentRatio = atof(pstr2);
+                finreport[2].CurrentRatio = atof(pstr3);
+                break;
+
+            case 4:
+                finreport[0].QuickRatio = atof(pstr1);
+                finreport[1].QuickRatio = atof(pstr2);
+                finreport[2].QuickRatio = atof(pstr3);
+                break;
+                
+            case 5:
+                finreport[0].InterestProtectionMultiples = atof(pstr1);
+                finreport[1].InterestProtectionMultiples = atof(pstr2);
+                finreport[2].InterestProtectionMultiples = atof(pstr3);
+                break;
+                
+            case 6:
+                finreport[0].AvgCollectionTurnover = atof(pstr1);
+                finreport[1].AvgCollectionTurnover = atof(pstr2);
+                finreport[2].AvgCollectionTurnover = atof(pstr3);
+                break;
+                
+            case 7:
+                finreport[0].AvgCollectionDay = atof(pstr1);
+                finreport[1].AvgCollectionDay = atof(pstr2);
+                finreport[2].AvgCollectionDay = atof(pstr3);
+                break;
+                
+            case 8:
+                finreport[0].AvgInvent = atof(pstr1);
+                finreport[1].AvgInvent = atof(pstr2);
+                finreport[2].AvgInvent = atof(pstr3);
+                break;
+                
+            case 9:
+                finreport[0].AvgInventoryTurnoverDay = atof(pstr1);
+                finreport[1].AvgInventoryTurnoverDay = atof(pstr2);
+                finreport[2].AvgInventoryTurnoverDay = atof(pstr3);
+                break;
+
+            case 10:
+                finreport[0].FixedAssetTurnover = atof(pstr1);
+                finreport[1].FixedAssetTurnover = atof(pstr2);
+                finreport[2].FixedAssetTurnover = atof(pstr3);
+                break;     
+                
+             case 11:
+                finreport[0].TotalAssetTurnover = atof(pstr1);
+                finreport[1].TotalAssetTurnover = atof(pstr2);
+                finreport[2].TotalAssetTurnover = atof(pstr3);
+                break;
+        
+             case 12:
+                finreport[0].ReturnOnTotalAsset = atof(pstr1);
+                finreport[1].ReturnOnTotalAsset = atof(pstr2);
+                finreport[2].ReturnOnTotalAsset = atof(pstr3);
+                break;    
+
+            case 13:
+                finreport[0].ReturnOnTotalStockholder = atof(pstr1);
+                finreport[1].ReturnOnTotalStockholder = atof(pstr2);
+                finreport[2].ReturnOnTotalStockholder = atof(pstr3);
+                break; 
+               
+            case 14:
+                finreport[0].PerTaxIncomeToCapitalRatio = atof(pstr1);
+                finreport[1].PerTaxIncomeToCapitalRatio = atof(pstr2);
+                finreport[2].PerTaxIncomeToCapitalRatio = atof(pstr3);
+                break;
+              
+            case 15:
+                finreport[0].NetIncomeToSales = atof(pstr1);
+                finreport[1].NetIncomeToSales = atof(pstr2);
+                finreport[2].NetIncomeToSales = atof(pstr3);
+                break;
+
+            case 16:
+                finreport[0].EPS = atof(pstr1);
+                finreport[1].EPS = atof(pstr2);
+                finreport[2].EPS = atof(pstr3);
+                break;
+                
+            case 17:
+                finreport[0].CashFlowRatio = atof(pstr1);
+                finreport[1].CashFlowRatio = atof(pstr2);
+                finreport[2].CashFlowRatio = atof(pstr3);
+                break;
+                    
+            case 18:
+                finreport[0].CashFlowAdequacyRatio = atof(pstr1);
+                finreport[1].CashFlowAdequacyRatio = atof(pstr2);
+                finreport[2].CashFlowAdequacyRatio = atof(pstr3);
+                break;
+                
+            case 19:
+                finreport[0].CashFlowReinvestmentRatio = atof(pstr1);
+                finreport[1].CashFlowReinvestmentRatio = atof(pstr2);
+                finreport[2].CashFlowReinvestmentRatio = atof(pstr3);
+                break;
+                
+            default:
+                break;
+
+        }
+        index++;
+    }
+    
+    if (!_MopstwseFinReport_Output(finreport, 3, Outputfile))
+    {
+        printf("GInfoFingrade output error \n");
+        goto FAILED;
+    }
+
+    bRet = true;
+
+FAILED:
+    if (pfinputfile !=NULL) fclose(pfinputfile); 
+    
+    return bRet;
+}
+
+
+bool SKApi_CVS2SK_MopstwseFinReport(const int Code, const char *Inputfile, const char *Outputfile)
+{
+    bool bRet = false;
+    //check input value
+    if (Inputfile == NULL || Outputfile == NULL)
+    {
+        printf("invalid input value\n");
+        goto FAILED;
+    }
+
+    if (!_MopstwseFinReport_Parsing(Code, Inputfile, Outputfile))
+    {
+        printf("GInfoFingrade Pasrsing error\n");
+        goto FAILED;
+    }
+
+    bRet = true;
+FAILED:
+    
+    return bRet;
+    
+}
+
+
 bool SKApi_CVS2SK_Earning(const int Code, const char *Inputfile, const char *Outputfile_Month, const char *Outputfile_Season)
 {
     bool bRet = false;

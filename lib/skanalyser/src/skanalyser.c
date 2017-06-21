@@ -198,6 +198,12 @@ static bool _stock_savedata(SK_HEADER header, FILE *pfinputfile)
         case SK_DATA_TYPE_GOODINFO_FINGRADE:
             FREE_MEM(stock[index].fingrade);
             stock[index].fingrade = (SK_FINGRADE *)p;
+            //printf("cash[%d] = %.02f \n",index, stock[index].fingrade[0].cash);
+            break;
+            
+        case SK_DATA_TYPE_MOPSTWSE_FINREPORT:
+            FREE_MEM(stock[index].finreport);
+            stock[index].finreport = (SK_MOPSFINREPORT *)p;
             break;
       
         default:
@@ -222,6 +228,7 @@ static bool _SK_Datasave(SK_HEADER header, FILE *pfinputfile)
         case SK_DATA_TYPE_EARNING_SEASON:
         case SK_DATA_TYPE_FINANCIALREPORT_SEASON:
         case SK_DATA_TYPE_GOODINFO_FINGRADE: 
+        case SK_DATA_TYPE_MOPSTWSE_FINREPORT:     
             bRet = _stock_savedata(header, pfinputfile);
             break;
 
@@ -254,10 +261,18 @@ static bool _SK_Fileread(const char *filename)
         goto FAILED;
     }
 
+    int test;
     /*read header*/
     if (fread((char *)&header, sizeof(SK_HEADER), 1, pfinput)!=0)
     {
         //printf("Read file [code : %d],[type : %d]\n",header.code,header.type);
+        if (header.code == 0)
+        {
+            sscanf(filename, "Sleipnir//%d.fingrade",&test);
+            printf("%d\n",test);
+        }
+            
+        
     }
     else
     {
@@ -396,6 +411,27 @@ static bool _Dump_goodinfo_fingrade(unsigned int code)
     return true;
 }
 
+static bool _Dump_mopstwse_finreport(unsigned int code)
+{
+    int i = 0;    
+    int index = _stock_getindex(code);
+    if (index == -1)
+        return false;
+
+    for (i = 0; stock[index].finreport[i].year!= 0; i++)
+    {
+        printf("%d, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f\n",
+            stock[index].finreport[i].year,
+            stock[index].finreport[i].DebtsRatio,
+            stock[index].finreport[i].LTFixedAsset,
+            stock[index].finreport[i].CurrentRatio,        
+            stock[index].finreport[i].EPS,
+            stock[index].finreport[i].CashFlowRatio,
+            stock[index].finreport[i].CashFlowAdequacyRatio,
+            stock[index].finreport[i].CashFlowReinvestmentRatio);
+    }
+    return true;
+}
 
 bool SKApi_SKANALYSER_Dump(const char *Inputfile)
 {
@@ -449,6 +485,10 @@ bool SKApi_SKANALYSER_Dump(const char *Inputfile)
             
         case SK_DATA_TYPE_GOODINFO_FINGRADE:
             _Dump_goodinfo_fingrade(header.code);
+            break;
+
+        case SK_DATA_TYPE_MOPSTWSE_FINREPORT:
+            _Dump_mopstwse_finreport(header.code);
             break;
             
         default:
@@ -986,6 +1026,14 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             FileReadError = true;
         }
 
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.fingrade",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+            FileReadError = true;
+        }
+
         /*
         memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.financial",path,code);
@@ -1222,6 +1270,73 @@ bool SKApi_SKANALYSER_RentStock(void)
         _RentStock_Output(skcodelist.code[index]);
     }
     
+    bRet = true;
+    return bRet;
+}
+
+static void _FundamentalRank_SortbyParm(bool Postive, FundamentalRank_SortType Type)
+{
+    int index_i = 0;
+    int index_j = 0;
+    int stock_i = 0;
+    int stock_j = 0;
+    //unsigned int tempcode = 0;
+
+    for (index_i = 0; index_i < skcodelist.codenum; index_i++)
+    {
+        //printf("%d\n",index_i);
+        stock_i = _stock_getindex(skcodelist.code[index_i]);
+        for (index_j = index_i; index_j < skcodelist.codenum; index_j++)
+        {
+            //printf("code = %d\n", skcodelist.code[index_j]);
+            stock_j = _stock_getindex(skcodelist.code[index_j]);
+            //printf("j= %d\n",stock_j);
+            switch (Type)
+            {
+                case FRST_CASH:
+                    if ((Postive && (stock[stock_i].fingrade[0].cash < stock[stock_j].fingrade[0].cash)) ||
+                        (!Postive && (stock[stock_i].fingrade[0].cash > stock[stock_j].fingrade[0].cash)))
+                    {
+                       /*
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                        */
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+    
+bool SKApi_SKANALYSER_FundamentalRank(void)
+{
+    bool bRet = false;
+    int index = 0;
+    //int stock_i = 0;
+    
+    printf("skcodelist.codenum = %d \n",skcodelist.codenum);
+
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        //stock_i= _stock_getindex(skcodelist.code[index]);
+        //printf("stock_i = %d, code = %d,\n", stock_i, skcodelist.code[index]);
+        //printf(" %.02f \n", stock[stock_i].fingrade[0].cash);
+    }
+
+    //printf("skcodelist.codenum = %d \n",skcodelist.codenum);
+
+    _FundamentalRank_SortbyParm(true, FRST_CASH);
+
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        //stock_i= _stock_getindex(skcodelist.code[index]);
+    
+        //printf("code = %d , %.02f \n",skcodelist.code[index], stock[stock_i].fingrade[0].cash);
+    }
+
     bRet = true;
     return bRet;
 }

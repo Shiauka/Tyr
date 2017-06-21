@@ -14,7 +14,8 @@ static bool checkparanum(int cmd, int arg)
             break;
 
         case SKANALYSER_TYPE_ANALYSIS:
-        case SKANALYSER_TYPE_RENTSTOCK:    
+        case SKANALYSER_TYPE_RENTSTOCK:
+        case SKANALYSER_TYPE_FUNDAMENTALRANK:
             if (arg == 4)
                 bRet = true;
             break;
@@ -69,6 +70,10 @@ int main(int argc, char *argv[])
 
         case SKANALYSER_TYPE_RENTSTOCK:
             bRet = SKApi_SKANALYSER_RentStock();
+            break;
+
+        case SKANALYSER_TYPE_FUNDAMENTALRANK:
+            bRet = SKApi_SKANALYSER_FundamentalRank();
             break;
             
         default:

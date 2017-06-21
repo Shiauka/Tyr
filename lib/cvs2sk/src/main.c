@@ -41,6 +41,10 @@ int main(int argc, char *argv[])
         case CVS2SK_FINANCIALREPORT_S:
             bRet = SKApi_CVS2SK_FinancialReport(argv[2],argv[3]);
             break;
+
+        case CVS2SK_MOPSTWSE_FINREPORT:
+            bRet = SKApi_CVS2SK_MopstwseFinReport(atoi(argv[2]), argv[3], argv[4]);
+            break;
             
         default:
             break;

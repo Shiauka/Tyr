@@ -11,6 +11,7 @@ typedef enum
     CVS2SK_EARNING = 2,
     CVS2SK_FINANCIALREPORT_S = 3, //TWSE financial report every season 
     CVS2SK_GOODINFO_FINGRADE = 4,
+    CVS2SK_MOPSTWSE_FINREPORT = 5,
     CVS2SK_MAX = 0xFFFF,
 }CVS2SK_CASE;
 
@@ -21,6 +22,7 @@ bool SKApi_CVS2SK_Price(const char *Inputfilelist, const char *OutputPath);
 bool SKApi_CVS2SK_Help(void);
 bool SKApi_CVS2SK_FinancialReport(const char *inputfile, const char *outpath);
 bool SKApi_CVS2SK_GInfoFingrade(const int Code, const char *Inputfile, const char *Outputfile);
+bool SKApi_CVS2SK_MopstwseFinReport(const int Code, const char *Inputfile, const char *Outputfile);
 
 
 #endif

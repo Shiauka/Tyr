@@ -8,7 +8,43 @@ static char _XMLBuffer[BUFFSIZE];
 static int firstyear =0;
 static int secondyear = 0;
 
+static bool Skip_specific_string(char* input, unsigned int inputlen, char *specificstr, unsigned int specificlen)
+{
+    char *orgStr = NULL;
+    char *specificStr = NULL;
+    char tempStr[512] = {0};
+    unsigned int tempLen = 0;
+    unsigned int Len = 0;
 
+    if (input ==NULL ||specificstr ==NULL)
+    {
+        return false;
+    }
+
+    orgStr = input;
+    specificStr = strstr(input, specificstr);
+    while(specificStr != NULL)
+    {
+        //printf("find nbsp\n");
+        tempLen = specificStr - orgStr;
+        memcpy(&tempStr[Len], orgStr, tempLen);
+        Len += tempLen;
+        orgStr = specificStr + specificlen;
+        specificStr = NULL;
+        specificStr = strstr(orgStr, specificstr);
+    }
+    
+    memcpy(&tempStr[Len], orgStr, strlen(orgStr));
+    Len += strlen(orgStr);
+    
+    if (Len >= 0)
+    {
+        memset(input, '\0', inputlen);
+        memcpy(input, tempStr, Len);
+    }
+    
+    return true;
+}
 
 static void _Printinfo_element_handle_start(void *userData, const char *name, const char **attr)
 {
@@ -513,6 +549,116 @@ static void _XSC_Goodinfo_Fingrade_char_handle(void *userData, const XML_Char *s
     }
 }
 
+static void _XSC_Mopstese_FinReport_element_handle_start(void *userData, const char *name, const char **attr)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    //int i =0;
+    
+    userptr->depth +=1;
+
+    if (strcmp("center",name)==0)
+    {
+        userptr->find = true;
+        /*
+        for (i = 0; attr[i]; i+=2)
+        {
+            if (strcmp("onmouseout",attr[i])==0 && strcmp("this.style.background=",attr[i+1])==0)
+            {
+                userptr->find = true;
+                userptr->findcount  = 0;
+                break;
+             }
+        }
+        */
+    }
+
+}
+
+static void _XSC_Mopstese_FinReport_element_handle_end(void *userData, const char *name)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+
+    userptr->depth -=1;
+    if (strcmp("center",name)==0)
+    {
+        userptr->find = false;
+    }
+}
+
+static void _XSC_Mopstese_FinReport_char_handle(void *userData, const XML_Char *s, int len)
+{
+    XML_USER_DATA *userptr = (XML_USER_DATA *)userData;
+    char temp[512]= {0};
+    //char *pstr = NULL;
+    char nbsp[10]= {0x6e,0x62,0x73,0x70,0x3b,'\0'};
+    char year[10] = {0xe5,0xb9,0xb4,0xe5,0xba,0xa6, '\0'};
+    
+    if ( len <= 1 && (s[0] == 0xA))
+    {
+        /*do nothing with dummy data from xml parsing bug*/
+        return;
+    }
+
+    if (userptr->find)
+    {
+        memcpy(temp,s,len);
+        Skip_specific_string(temp, strlen(temp), nbsp, strlen(nbsp));
+        if (strlen(temp) == 0)
+            sprintf(temp, "-");
+        
+        if (userptr->findcount >= 1  &&  userptr->findcount <= 3) 
+        {        
+            //year
+            Skip_specific_string(temp, strlen(temp), year, strlen(year));
+            if (userptr->findcount == 1)
+                fprintf(userptr->outfile,"%s,\"%s\",",year, temp);
+            else if (userptr->findcount == 3)
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        else if (userptr->findcount >= 6  &&  userptr->findcount <= 13) 
+        {
+             if (userptr->findcount == 9 || userptr->findcount == 13)
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        else if (userptr->findcount >= 16  &&  userptr->findcount <= 27) 
+        {
+             if (userptr->findcount == 19 ||userptr->findcount == 23 || userptr->findcount == 27)
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        else if (userptr->findcount >= 32  &&  userptr->findcount <= 55) 
+        {
+             if (userptr->findcount == 35 ||userptr->findcount == 39 || userptr->findcount == 43 || 
+                userptr->findcount == 47 ||userptr->findcount == 51 || userptr->findcount == 55)
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        else if (userptr->findcount >= 60  &&  userptr->findcount <= 79) 
+        {
+             if (userptr->findcount == 63 ||userptr->findcount == 67 || userptr->findcount == 71 || 
+                userptr->findcount == 75 ||userptr->findcount == 79 )
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        else if (userptr->findcount >= 82  &&  userptr->findcount <= 93) 
+        {
+             if (userptr->findcount == 85 ||userptr->findcount == 89 || userptr->findcount == 93)
+                fprintf(userptr->outfile,"\"%s\",\n",temp);
+            else
+                fprintf(userptr->outfile,"\"%s\",",temp); 
+        }
+        userptr->findcount++;
+    }
+}
+
+
 bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CASE XSC)
 {    
     int done = 0;
@@ -550,6 +696,10 @@ bool SKApi_XML_Parsingspecificcase(FILE *xmlfile, FILE *outfile, XML_SPECIFIC_CA
         case XSC_GOODINFO_FINGRADE:
             XML_SetElementHandler(parser, _XSC_Goodinfo_Fingrade_element_handle_start, _XSC_Goodinfo_Fingrade_element_handle_end);
             XML_SetCharacterDataHandler(parser,_XSC_Goodinfo_Fingrade_char_handle);
+            break;
+        case XSC_MOPSTWSE_FINREPORT:
+            XML_SetElementHandler(parser, _XSC_Mopstese_FinReport_element_handle_start, _XSC_Mopstese_FinReport_element_handle_end);
+            XML_SetCharacterDataHandler(parser,_XSC_Mopstese_FinReport_char_handle);
             break;
         default:
             goto FAILED_CASE;
