@@ -161,6 +161,7 @@ typedef struct
 typedef struct
 {
     unsigned int code;
+    float score;
     SK_PRICE *price;
     SK_EARNING_SEASON *earning_s;
     SK_EARNING_MONTH *earning_m;

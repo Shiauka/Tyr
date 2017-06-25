@@ -15,19 +15,26 @@ typedef enum
 
 typedef enum
 {
-    FRST_CASH,
-    FRST_RECEIVABLE,
-    FRST_STOCK,
-    FRST_INVEST,
-    FRST_OTHERASSET,
-    FRST_DEBT,
-    FRST_GPM,
-    FRST_OPM,
-    FRST_NOPM,
-    FRST_NPM,
-    FRST_ROE,
-    FRST_ROA,
-    FRST_CFR,
+    FRST_DebtsRatio,  //[small is better]
+    FRST_LTFixedAsset,//[small is better] Long term funds to fixed assets
+    FRST_CurrentRatio, //[large is better]
+    FRST_QuickRatio, //[large is better]
+    FRST_InterestProtectionMultiples, //[large is better] Interest Protection Multiples
+    FRST_AvgCollectionTurnove, //[large is better] Average collection turnover(times)
+    FRST_AvgCollectionDay, //[small is better] Average collection days
+    FRST_AvgInvent, //[large is better]
+    FRST_AvgInventoryTurnoverDay, //[small is better] Average inventory turnover days
+    FRST_FixedAssetTurnover, //[large is better]Fixed assets turnover (time)
+    FRST_TotalAssetTurnover, //[large is better]Total assets turnover (time)
+    FRST_ReturnOnTotalAsset,//[large is better]Return on total assets
+    FRST_ReturnOnTotalStockholder, //[large is better]Return on total stockholder
+    FRST_PerTaxIncomeToCapitalRatio, //[large is better]Per-tax income to capital
+    FRST_NetIncomeToSales,//[large is better]Net income to sales
+    FRST_EPS, //[large is better]
+    FRST_CashFlowRatio, //[large is better]
+    FRST_CashFlowAdequacyRatio, //[large is better]Cash flow adequacy ratio
+    FRST_CashFlowReinvestmentRatio, //[large is better]Cash flow reinvestment ratio
+    FRST_Score,
 }FundamentalRank_SortType;
 
 /*earning(month) dividend method*/

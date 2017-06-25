@@ -85,6 +85,7 @@ static void _stock_freestock_specificindex(unsigned int index)
     FREE_MEM(stock[index].earning_s);
     FREE_MEM(stock[index].price);
     stock[index].code = 0;
+    stock[index].score = 0;
 }
 
 /*Not use now*/
@@ -1026,6 +1027,7 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             FileReadError = true;
         }
 
+        /*
         memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.fingrade",path,code);
         if (!_SK_Fileread(filename))
@@ -1034,7 +1036,6 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             FileReadError = true;
         }
 
-        /*
         memset(filename,'\0', 128);
         sprintf(filename,"%s/%d.financial",path,code);
         if (!_SK_Fileread(filename))
@@ -1042,6 +1043,14 @@ bool SKApi_SKANALYSER_Fileread(const char *codelist, const char * path)
             printf("fread failed : %s\n",filename);
         }
         */
+        
+        memset(filename,'\0', 128);
+        sprintf(filename,"%s/%d.finreport",path,code);
+        if (!_SK_Fileread(filename))
+        {
+            printf("fread failed : %s\n",filename);
+            FileReadError = true;
+        }
 
         if (!FileReadError)
         {
@@ -1274,67 +1283,413 @@ bool SKApi_SKANALYSER_RentStock(void)
     return bRet;
 }
 
-static void _FundamentalRank_SortbyParm(bool Postive, FundamentalRank_SortType Type)
+static void _FundamentalRank_SortbyParm(bool Postive, FundamentalRank_SortType Type, int Year)
 {
     int index_i = 0;
     int index_j = 0;
     int stock_i = 0;
     int stock_j = 0;
-    //unsigned int tempcode = 0;
+    int year_index = 999;
+    unsigned int tempcode = 0;
+
+    //check year
+    for (index_i = 0; stock[0].finreport[index_i].year != 0; index_i++)
+    {
+        if (stock[0].finreport[index_i].year == Year)
+        {
+            year_index = index_i;
+            break;
+        }
+    }
+
+    if (year_index ==999 )
+    {
+        printf("Can't find target year\n");
+        return;
+    }
 
     for (index_i = 0; index_i < skcodelist.codenum; index_i++)
     {
-        //printf("%d\n",index_i);
-        stock_i = _stock_getindex(skcodelist.code[index_i]);
         for (index_j = index_i; index_j < skcodelist.codenum; index_j++)
         {
-            //printf("code = %d\n", skcodelist.code[index_j]);
+            stock_i = _stock_getindex(skcodelist.code[index_i]);
             stock_j = _stock_getindex(skcodelist.code[index_j]);
             //printf("j= %d\n",stock_j);
             switch (Type)
             {
-                case FRST_CASH:
-                    if ((Postive && (stock[stock_i].fingrade[0].cash < stock[stock_j].fingrade[0].cash)) ||
-                        (!Postive && (stock[stock_i].fingrade[0].cash > stock[stock_j].fingrade[0].cash)))
+                case FRST_DebtsRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].DebtsRatio< stock[stock_j].finreport[year_index].DebtsRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].DebtsRatio > stock[stock_j].finreport[year_index].DebtsRatio)))
                     {
-                       /*
                         tempcode = skcodelist.code[index_i];
                         skcodelist.code[index_i] = skcodelist.code[index_j];
                         skcodelist.code[index_j] = tempcode;
-                        */
                     }
                     break;
+
+                case FRST_LTFixedAsset:
+                    if ((Postive && (stock[stock_i].finreport[year_index].LTFixedAsset< stock[stock_j].finreport[year_index].LTFixedAsset)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].LTFixedAsset > stock[stock_j].finreport[year_index].LTFixedAsset)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_CurrentRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].CurrentRatio< stock[stock_j].finreport[year_index].CurrentRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].CurrentRatio > stock[stock_j].finreport[year_index].CurrentRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_QuickRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].QuickRatio< stock[stock_j].finreport[year_index].QuickRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].QuickRatio > stock[stock_j].finreport[year_index].QuickRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_InterestProtectionMultiples:
+                    if ((Postive && (stock[stock_i].finreport[year_index].InterestProtectionMultiples< stock[stock_j].finreport[year_index].InterestProtectionMultiples)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].InterestProtectionMultiples > stock[stock_j].finreport[year_index].InterestProtectionMultiples)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_AvgCollectionTurnove:
+                    if ((Postive && (stock[stock_i].finreport[year_index].AvgCollectionTurnover< stock[stock_j].finreport[year_index].AvgCollectionTurnover)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].AvgCollectionTurnover > stock[stock_j].finreport[year_index].AvgCollectionTurnover)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_AvgCollectionDay:
+                    if ((Postive && (stock[stock_i].finreport[year_index].AvgCollectionDay< stock[stock_j].finreport[year_index].AvgCollectionDay)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].AvgCollectionDay > stock[stock_j].finreport[year_index].AvgCollectionDay)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_AvgInvent:
+                    if ((Postive && (stock[stock_i].finreport[year_index].AvgInvent< stock[stock_j].finreport[year_index].AvgInvent)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].AvgInvent > stock[stock_j].finreport[year_index].AvgInvent)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_AvgInventoryTurnoverDay:
+                    if ((Postive && (stock[stock_i].finreport[year_index].AvgInventoryTurnoverDay< stock[stock_j].finreport[year_index].AvgInventoryTurnoverDay)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].AvgInventoryTurnoverDay > stock[stock_j].finreport[year_index].AvgInventoryTurnoverDay)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_FixedAssetTurnover:
+                    if ((Postive && (stock[stock_i].finreport[year_index].FixedAssetTurnover< stock[stock_j].finreport[year_index].FixedAssetTurnover)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].FixedAssetTurnover > stock[stock_j].finreport[year_index].FixedAssetTurnover)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_TotalAssetTurnover:
+                    if ((Postive && (stock[stock_i].finreport[year_index].TotalAssetTurnover< stock[stock_j].finreport[year_index].TotalAssetTurnover)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].TotalAssetTurnover > stock[stock_j].finreport[year_index].TotalAssetTurnover)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_ReturnOnTotalAsset:
+                    if ((Postive && (stock[stock_i].finreport[year_index].ReturnOnTotalAsset< stock[stock_j].finreport[year_index].ReturnOnTotalAsset)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].ReturnOnTotalAsset > stock[stock_j].finreport[year_index].ReturnOnTotalAsset)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_ReturnOnTotalStockholder:
+                    if ((Postive && (stock[stock_i].finreport[year_index].ReturnOnTotalStockholder< stock[stock_j].finreport[year_index].ReturnOnTotalStockholder)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].ReturnOnTotalStockholder > stock[stock_j].finreport[year_index].ReturnOnTotalStockholder)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                    
+                case FRST_PerTaxIncomeToCapitalRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].PerTaxIncomeToCapitalRatio< stock[stock_j].finreport[year_index].PerTaxIncomeToCapitalRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].PerTaxIncomeToCapitalRatio > stock[stock_j].finreport[year_index].PerTaxIncomeToCapitalRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_NetIncomeToSales:
+                    if ((Postive && (stock[stock_i].finreport[year_index].NetIncomeToSales< stock[stock_j].finreport[year_index].NetIncomeToSales)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].NetIncomeToSales > stock[stock_j].finreport[year_index].NetIncomeToSales)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_EPS:
+                    if ((Postive && (stock[stock_i].finreport[year_index].EPS< stock[stock_j].finreport[year_index].EPS)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].EPS > stock[stock_j].finreport[year_index].EPS)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_CashFlowRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].CashFlowRatio< stock[stock_j].finreport[year_index].CashFlowRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].CashFlowRatio > stock[stock_j].finreport[year_index].CashFlowRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_CashFlowAdequacyRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].CashFlowAdequacyRatio< stock[stock_j].finreport[year_index].CashFlowAdequacyRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].CashFlowAdequacyRatio > stock[stock_j].finreport[year_index].CashFlowAdequacyRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_CashFlowReinvestmentRatio:
+                    if ((Postive && (stock[stock_i].finreport[year_index].CashFlowReinvestmentRatio< stock[stock_j].finreport[year_index].CashFlowReinvestmentRatio)) ||
+                        (!Postive && (stock[stock_i].finreport[year_index].CashFlowReinvestmentRatio > stock[stock_j].finreport[year_index].CashFlowReinvestmentRatio)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+
+                case FRST_Score:
+                    if ((Postive && (stock[stock_i].score< stock[stock_j].score)) ||
+                        (!Postive && (stock[stock_i].score > stock[stock_j].score)))
+                    {
+                        tempcode = skcodelist.code[index_i];
+                        skcodelist.code[index_i] = skcodelist.code[index_j];
+                        skcodelist.code[index_j] = tempcode;
+                    }
+                    break;
+                  
                 default:
                     break;
             }
         }
     }
 }
+
+float _FundamentalRank_calScore(float weight, int totalnum, int rank)
+{
+    if (totalnum == 0)
+        return 0;
+
+    float Ret = (weight - (float)(rank*weight)/totalnum);
+
+    return Ret;
     
+}
+
 bool SKApi_SKANALYSER_FundamentalRank(void)
 {
     bool bRet = false;
     int index = 0;
-    //int stock_i = 0;
+    int stock_i = 0;
+    int year = 105;
     
     printf("skcodelist.codenum = %d \n",skcodelist.codenum);
 
+    _FundamentalRank_SortbyParm(false, FRST_DebtsRatio, year);
+
     for (index = 0; index < skcodelist.codenum; index++)
     {
-        //stock_i= _stock_getindex(skcodelist.code[index]);
-        //printf("stock_i = %d, code = %d,\n", stock_i, skcodelist.code[index]);
-        //printf(" %.02f \n", stock[stock_i].fingrade[0].cash);
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(7, skcodelist.codenum,index); 
+        //printf("stock_i = %d, code = %d,", stock_i, skcodelist.code[index]);
+        //printf(" %.02f, %.02f\n", stock[stock_i].finreport[2].DebtsRatio, stock[stock_i].score);
     }
 
-    //printf("skcodelist.codenum = %d \n",skcodelist.codenum);
-
-    _FundamentalRank_SortbyParm(true, FRST_CASH);
-
+    _FundamentalRank_SortbyParm(false, FRST_LTFixedAsset, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
-        //stock_i= _stock_getindex(skcodelist.code[index]);
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(7, skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_CurrentRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_QuickRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_InterestProtectionMultiples, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_AvgCollectionTurnove, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(false, FRST_AvgCollectionDay, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_AvgInvent, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(false, FRST_AvgInventoryTurnoverDay, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_FixedAssetTurnover, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_TotalAssetTurnover, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
     
-        //printf("code = %d , %.02f \n",skcodelist.code[index], stock[stock_i].fingrade[0].cash);
+    _FundamentalRank_SortbyParm(true, FRST_ReturnOnTotalAsset, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_ReturnOnTotalStockholder, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_PerTaxIncomeToCapitalRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_NetIncomeToSales, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_EPS, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_CashFlowRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(8,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_CashFlowAdequacyRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(6,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_CashFlowReinvestmentRatio, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        stock[stock_i].score += _FundamentalRank_calScore(6,skcodelist.codenum,index); 
+    }
+
+    _FundamentalRank_SortbyParm(true, FRST_Score, year);
+    for (index = 0; index < skcodelist.codenum; index++)
+    {
+        stock_i= _stock_getindex(skcodelist.code[index]);
+        //printf("[%d] %s , %.02f\n", skcodelist.code[index], stock[stock_i].price[0].name, stock[stock_i].score);
+
+        if (stock[stock_i].score > 60)
+        {
+            printf("%d\n", skcodelist.code[index]);
+        }        
     }
 
     bRet = true;
