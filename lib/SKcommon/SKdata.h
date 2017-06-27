@@ -186,6 +186,7 @@ typedef struct
     float PEratio_max;
     float PEratio_min;
     float PEratio_avg;
+    unsigned int strikestock_avg;
     float EPS;
     float rentcash;
     float rentstock;

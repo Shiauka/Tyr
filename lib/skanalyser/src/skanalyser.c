@@ -1081,6 +1081,7 @@ static bool _RentStock_GetSKInfo(int code)
 
     float Totalprice = 0;
     float TotalPEratio = 0;
+    unsigned int Totalstrikestock = 0;
     int currentyear = 0;
     int Totalday = 0;
     int Totalday_peratio = 0;
@@ -1099,8 +1100,10 @@ static bool _RentStock_GetSKInfo(int code)
             skinfo[skinfoindex].year = currentyear;
             skinfo[skinfoindex].PEratio_avg = TotalPEratio /  Totalday_peratio;
             skinfo[skinfoindex].Price_avg = Totalprice /  Totalday;
+            skinfo[skinfoindex].strikestock_avg = Totalstrikestock/  Totalday;
             skinfo[skinfoindex].EPS = skinfo[skinfoindex].Price_avg / skinfo[skinfoindex].PEratio_avg;
             Totalprice = 0;
+            Totalstrikestock = 0;
             TotalPEratio = 0;
             Totalday = 0;
             Totalday_peratio = 0;
@@ -1127,6 +1130,7 @@ static bool _RentStock_GetSKInfo(int code)
                 skip_petatio = true;
         }
         Totalprice += stock[codeindex].price[index].price_end;
+        Totalstrikestock += stock[codeindex].price[index].strikestock;
         if (skip_petatio)
         {
             skip_petatio = false;
@@ -1140,9 +1144,10 @@ static bool _RentStock_GetSKInfo(int code)
         
     }
     skinfo[skinfoindex].year = currentyear;
-    skinfo[skinfoindex].PEratio_avg = TotalPEratio /  Totalday;
-    skinfo[skinfoindex].Price_avg = Totalprice /  Totalday_peratio;
-    skinfo[skinfoindex].EPS = skinfo[skinfoindex].Price_avg / skinfo[skinfoindex].PEratio_avg ;
+    skinfo[skinfoindex].PEratio_avg = TotalPEratio / Totalday_peratio;
+    skinfo[skinfoindex].Price_avg = Totalprice /Totalday ;
+    skinfo[skinfoindex].strikestock_avg = Totalstrikestock/ Totalday;
+    skinfo[skinfoindex].EPS = skinfo[skinfoindex].Price_avg /skinfo[skinfoindex].PEratio_avg ;
     skinfonum = skinfoindex;
 
     /*The last price*/
@@ -1153,6 +1158,7 @@ static bool _RentStock_GetSKInfo(int code)
     skinfo[skinfoindex+1].PEratio_max = stock[codeindex].price[index-1].PEratio;
     skinfo[skinfoindex+1].PEratio_min = stock[codeindex].price[index-1].PEratio;
     skinfo[skinfoindex+1].PEratio_avg = stock[codeindex].price[index-1].PEratio;
+    skinfo[skinfoindex+1].strikestock_avg = stock[codeindex].price[index-1].strikestock;
     skinfo[skinfoindex+1].EPS = skinfo[skinfoindex+1].Price_avg / skinfo[skinfoindex+1].PEratio_avg ;
     skinfonum++;
 
@@ -1216,15 +1222,21 @@ static bool _RentStock_Output(int code)
         Price_buy_ratio = (Price_buy / skinfo[index].Price_avg  - 1 ) * 100;
 
         //condition
-        // 1. cash rent ratio > 6 %  or  total(cash + stock) rent Ratio > 9 %
+        // 1. cash rent ratio > 5 %  or  total(cash + stock) rent Ratio > 7 %
         // 2. the last 5 year PEratio average < 15
         // 3. current PEratio > the last 5 year PEratio
+        // 4. Price_buy_ratio > 10
+        // 5. pre year strikestock_avg > 500
 
         if ((RentCashRatio_avg >= 5 ||RentTotalRatio_avg >= 7) && PEratio_avg5 <= 15)
         {
-            if (Price_buy >=skinfo[index].Price_avg && (Price_buy_ratio > 5 && Price_buy_ratio < 60))
+            if (Price_buy >=skinfo[index].Price_avg && (Price_buy_ratio > 10 && Price_buy_ratio < 
+            100))
             {
-                bprint = true;
+                //if (skinfo[index-1].strikestock_avg > 500000)
+                {
+                    bprint = true;
+                }
             }
         }
     }
@@ -1241,19 +1253,19 @@ static bool _RentStock_Output(int code)
             if (index == 0)
             {    
                  /*csv format output*/
-                printf("%d,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,\n",
+                printf("%d,%.02f,%.02f,%.02f,%.02f,%.02f,%d,%.02f,%.02f,%.02f,%.02f\n",
                 skinfo[index].year, skinfo[index].Price_max, 
                 skinfo[index].Price_min, skinfo[index].Price_avg, 
-                skinfo[index].PEratio_avg,skinfo[index].EPS,skinfo[index].rentcash, 
+                skinfo[index].PEratio_avg,skinfo[index].EPS,skinfo[index].strikestock_avg,skinfo[index].rentcash, 
                 skinfo[index].rentstock,RentCashRatio_avg , RentTotalRatio_avg );
             }
             else
             {
                  /*csv format output*/
-                printf(",%d,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,%.02f,\n",
+                printf(",%d,%.02f,%.02f,%.02f,%.02f,%.02f,%d,%.02f,%.02f,%.02f,%.02f,\n",
                 skinfo[index].year, skinfo[index].Price_max, 
                 skinfo[index].Price_min, skinfo[index].Price_avg, 
-                skinfo[index].PEratio_avg,skinfo[index].EPS, skinfo[index].rentcash, 
+                skinfo[index].PEratio_avg,skinfo[index].EPS,skinfo[index].strikestock_avg, skinfo[index].rentcash, 
                 skinfo[index].rentstock,RentCashRatio_avg , RentTotalRatio_avg );
             }
         }
@@ -1549,7 +1561,7 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(7, skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
         //printf("stock_i = %d, code = %d,", stock_i, skcodelist.code[index]);
         //printf(" %.02f, %.02f\n", stock[stock_i].finreport[2].DebtsRatio, stock[stock_i].score);
     }
@@ -1558,28 +1570,28 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(7, skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_CurrentRatio, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(3, skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_QuickRatio, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(3, skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_InterestProtectionMultiples, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5, skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(3, skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_AvgCollectionTurnove, year);
@@ -1621,7 +1633,7 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(4,skcodelist.codenum,index); 
     }
     
     _FundamentalRank_SortbyParm(true, FRST_ReturnOnTotalAsset, year);
@@ -1635,7 +1647,7 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(10,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_PerTaxIncomeToCapitalRatio, year);
@@ -1649,35 +1661,35 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(12,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_EPS, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(10,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_CashFlowRatio, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(8,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_CashFlowAdequacyRatio, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(6,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_CashFlowReinvestmentRatio, year);
     for (index = 0; index < skcodelist.codenum; index++)
     {
         stock_i= _stock_getindex(skcodelist.code[index]);
-        stock[stock_i].score += _FundamentalRank_calScore(6,skcodelist.codenum,index); 
+        stock[stock_i].score += _FundamentalRank_calScore(5,skcodelist.codenum,index); 
     }
 
     _FundamentalRank_SortbyParm(true, FRST_Score, year);
@@ -1689,7 +1701,7 @@ bool SKApi_SKANALYSER_FundamentalRank(void)
         if (stock[stock_i].score > 60)
         {
             printf("%d\n", skcodelist.code[index]);
-        }        
+        }
     }
 
     bRet = true;
