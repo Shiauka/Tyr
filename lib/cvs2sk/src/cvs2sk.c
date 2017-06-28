@@ -1063,7 +1063,7 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
 
                 //printf("%s",line);
                 pstr = Skip_specific_character(line, LINE_LEN, ',');
-                pstr = strtok(pstr,"\"= \t\n+-");
+                pstr = strtok(pstr,"\"\t\n");
                 
                 while (pstr != NULL)
                 {
@@ -1108,11 +1108,11 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
                             skprice.price_end = atof(pstr);
                             break;
                             
-                        case 9:
+                        case 10:
                             skprice.price_diff = atof(pstr);
                             break;
                             
-                        case 14:
+                        case 15:
                             skprice.PEratio = atof(pstr);
                             break;
                             
@@ -1120,7 +1120,7 @@ static bool _Price_Parsing(const char *Inputfile, const char* OutputPath)
                             break;
                     }
                 
-                    pstr = strtok(NULL,"\"= \t\n,+-");
+                    pstr = strtok(NULL,"\"\t\n");
                     index++;
                 }
                 //printf("%d, %s, %f, %f\n",skprice.code, skprice.name, skprice.price_end, skprice.PEratio);
